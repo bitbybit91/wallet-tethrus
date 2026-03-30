@@ -65,6 +65,8 @@ import com.mycelium.wapi.wallet.erc20.ERC20Account
 import com.mycelium.wapi.wallet.eth.EthAccount
 import com.mycelium.wapi.wallet.eth.EthAddress
 import com.mycelium.wapi.wallet.fiat.coins.FiatType
+import com.mycelium.wapi.wallet.tron.TronAccount
+import com.mycelium.wapi.wallet.tron.TronAddress
 import com.squareup.otto.Subscribe
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -463,6 +465,9 @@ class ExchangeFragment : Fragment(), BackListener {
                     }
                     is AbstractBtcAccount -> {
                         BtcAddress(Utils.getBtcCoinType(), BitcoinAddress.fromString(addressTo))
+                    }
+                    is TronAccount -> {
+                        TronAddress(account.coinType, addressTo)
                     }
                     else -> TODO("Account not supported yet")
                 }

@@ -26,6 +26,8 @@ import com.mycelium.wapi.wallet.eth.EthereumModule
 import com.mycelium.wapi.wallet.fio.FioAccount
 import com.mycelium.wapi.wallet.fio.FioModule
 import com.mycelium.wapi.wallet.fio.RegisteredFIOName
+import com.mycelium.wapi.wallet.tron.TronAccount
+import com.mycelium.wapi.wallet.tron.TronModule
 import com.squareup.otto.Subscribe
 
 class AddressFragmentModel(
@@ -94,6 +96,12 @@ class AddressFragmentModel(
                     bip32Path.value = address.bip32Path
                     type.value = address.type
                     accountAddressType.value = context.getString(address.type.asStringRes())
+                }
+            }
+            is TronAccount -> {
+                val module = mbwManager.getWalletManager(false).getModuleById(TronModule.ID) as? TronModule
+                if (module != null) {
+                    bip32Path.value = module.getBip44Path(0)
                 }
             }
         }
