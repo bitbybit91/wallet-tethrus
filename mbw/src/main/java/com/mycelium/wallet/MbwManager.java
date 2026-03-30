@@ -190,6 +190,10 @@ import com.mycelium.wapi.wallet.fio.FioKeyManager;
 import com.mycelium.wapi.wallet.fio.FioModule;
 import com.mycelium.wapi.wallet.fio.RecordObtData;
 import com.mycelium.wapi.wallet.fio.coins.FIOToken;
+import com.mycelium.wapi.wallet.tron.TronConstants;
+import com.mycelium.wapi.wallet.tron.TronGridBlockchainService;
+import com.mycelium.wapi.wallet.tron.TronModule;
+import com.mycelium.wapi.wallet.tron.TronSettings;
 import com.mycelium.wapi.wallet.genericdb.AccountContextsBacking;
 import com.mycelium.wapi.wallet.genericdb.AdaptersKt;
 import com.mycelium.wapi.wallet.genericdb.Backing;
@@ -596,6 +600,7 @@ public class MbwManager {
     private void initPerCurrencySettings() {
         initBTCSettings();
         initBTCVSettings();
+        initTronSettings();
     }
 
     private void initBTCSettings() {
@@ -607,6 +612,10 @@ public class MbwManager {
     private void initBTCVSettings() {
         BTCSettings btcSettings = new BTCSettings(defaultAddressType, new Reference<>(changeAddressMode));
         currenciesSettingsMap.put(BitcoinVaultHDModule.ID, btcSettings);
+    }
+
+    private void initTronSettings() {
+        currenciesSettingsMap.put(TronModule.ID, new TronSettings());
     }
 
     private void createTempWalletManager() {
@@ -849,6 +858,13 @@ public class MbwManager {
                 getMetadataStorage(), accountListener));
          walletManager.getFeeEstimations().addProvider(new BtcvFeeProvider(isTestnet, btcvWapi, feeBacking));
 
+        // Tron module - TRX and TRC20 (USDT) support
+        TronGridBlockchainService tronBlockchainService = new TronGridBlockchainService(
+                BuildConfig.TronGridApiServers[0], TronConstants.TRONGRID_API_KEY);
+        TronModule tronModule = new TronModule(secureKeyValueStore, tronBlockchainService,
+                networkParameters, getMetadataStorage(), accountListener);
+        walletManager.add(tronModule);
+
         walletManager.add(new InvestmentModule(getMetadataStorage()));
         walletManager.init();
         walletManager.startSynchronization(SyncMode.FULL_SYNC_ALL_ACCOUNTS);
@@ -924,6 +940,13 @@ public class MbwManager {
                 secureKeyValueStore, fioGenericBacking, db, networkParameters, getMetadataStorage(),
                 fioKeyManager, accountListener, walletManager, configuration.getFioTpid());
         walletManager.add(fioModule);
+
+        // Tron module for temp wallet manager
+        TronGridBlockchainService tronBlockchainService = new TronGridBlockchainService(
+                BuildConfig.TronGridApiServers[0], TronConstants.TRONGRID_API_KEY);
+        walletManager.add(new TronModule(secureKeyValueStore, tronBlockchainService,
+                networkParameters, getMetadataStorage(), accountListener));
+
         walletManager.disableTransactionHistorySynchronization();
         return walletManager;
     }
