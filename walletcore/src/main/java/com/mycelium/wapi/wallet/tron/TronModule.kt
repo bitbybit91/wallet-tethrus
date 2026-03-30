@@ -176,8 +176,8 @@ class TronModule(
 
     private fun getCurrentBip44Index() = accounts.values
         .filter { it.isDerivedFromInternalMasterseed() }
-        .maxByOrNull { 0 }
-        ?.let { 0 }
+        .maxByOrNull { it.id.hashCode() }
+        ?.let { accounts.values.filter { it.isDerivedFromInternalMasterseed() }.indexOf(it) }
         ?: -1
 
     companion object {

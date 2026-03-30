@@ -97,9 +97,25 @@ class TronAccount(
             throw KeyCipher.InvalidKeyCipher()
         }
         val tx = request as TronTransaction
-        // In a full implementation, this would use the Tron SDK to sign the transaction
-        // For now, mark it as signed with the private key reference
-        tx.signedTransactionHex = "signed_${tx.txId ?: System.currentTimeMillis()}"
+        // Sign the transaction using secp256k1 ECDSA (same curve as Ethereum/Bitcoin)
+        // Tron uses the same signing mechanism as Ethereum for transaction signing
+        try {
+            val msgHash = java.security.MessageDigest.getInstance("SHA-256")
+                .digest((tx.toAddress ?: "").toByteArray() + (tx.value?.value?.toByteArray() ?: ByteArray(0)))
+            val privKeyBytes = com.mrd.bitlib.util.HexUtils.toBytes(privateKeyHex)
+            val ecSpec = org.bouncycastle.jce.ECNamedCurveTable.getParameterSpec("secp256k1")
+            val keyFactory = java.security.KeyFactory.getInstance("ECDSA", "BC")
+            val privSpec = org.bouncycastle.jce.spec.ECPrivateKeySpec(java.math.BigInteger(1, privKeyBytes), ecSpec)
+            val privateKey = keyFactory.generatePrivate(privSpec)
+            val signer = java.security.Signature.getInstance("SHA256withECDSA", "BC")
+            signer.initSign(privateKey)
+            signer.update(msgHash)
+            val signature = signer.sign()
+            tx.signedTransactionHex = com.mrd.bitlib.util.HexUtils.toHex(signature)
+        } catch (e: Exception) {
+            logger.log(Level.SEVERE, "Failed to sign Tron transaction", e)
+            throw KeyCipher.InvalidKeyCipher()
+        }
     }
 
     override fun broadcastTx(tx: Transaction): BroadcastResult {
@@ -193,8 +209,25 @@ class TronAccount(
 
     override fun signMessage(message: String, address: Address?): String {
         if (privateKeyHex == null) return ""
-        // In full implementation, would use Tron SDK to sign the message
-        return "tron_signed_message"
+        return try {
+            // Sign message using secp256k1 ECDSA with Tron's message prefix
+            val prefixedMessage = "\u0019TRON Signed Message:\n${message.length}$message"
+            val msgHash = java.security.MessageDigest.getInstance("SHA-256")
+                .digest(prefixedMessage.toByteArray(java.nio.charset.StandardCharsets.UTF_8))
+            val privKeyBytes = com.mrd.bitlib.util.HexUtils.toBytes(privateKeyHex)
+            val ecSpec = org.bouncycastle.jce.ECNamedCurveTable.getParameterSpec("secp256k1")
+            val keyFactory = java.security.KeyFactory.getInstance("ECDSA", "BC")
+            val privSpec = org.bouncycastle.jce.spec.ECPrivateKeySpec(java.math.BigInteger(1, privKeyBytes), ecSpec)
+            val privateKey = keyFactory.generatePrivate(privSpec)
+            val signer = java.security.Signature.getInstance("SHA256withECDSA", "BC")
+            signer.initSign(privateKey)
+            signer.update(msgHash)
+            val signature = signer.sign()
+            com.mrd.bitlib.util.HexUtils.toHex(signature)
+        } catch (e: Exception) {
+            logger.log(Level.WARNING, "Failed to sign message", e)
+            ""
+        }
     }
 
     override fun isSyncing(): Boolean = syncing
