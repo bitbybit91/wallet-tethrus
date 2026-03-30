@@ -276,7 +276,7 @@ android {
 
     productFlavors {
         prodnet {
-            applicationId 'com.mycelium.wallet'
+            applicationId 'com.tethrus.wallet'
             versionName = defaultConfig.versionName
             signingConfig signingConfigs.release
 
@@ -289,6 +289,10 @@ android {
                 ColuBlockExplorerApiURLs = '{"https://coloredcoins.gear.mycelium.com/api/", "https://explorer.coloredcoins.org/api/"}'
                 RMCChangeAddress = "18c91fJmVg7btPjxpwrhgwd37GkVghq9me"
 
+                // Tron mainnet API endpoints (TronGrid)
+                TronGridApiServers = '{"https://api.trongrid.io"}'
+                TronScanUrl = '"https://tronscan.org"'
+                UsdtTrc20Contract = '"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"'
 
                 ElectrumServers = '{"tcp-tls://electrumx-1a.mycelium.com:10000",' +
                         '"tcp-tls://electrumx-1a0.mycelium.com:10000",' +
@@ -349,7 +353,7 @@ android {
             logger.info("Signing config is ", signingConfig)
         }
         btctestnet {
-            applicationId 'com.mycelium.testnetwallet'
+            applicationId 'com.tethrus.testnetwallet'
             versionName = defaultConfig.versionName + '-TESTNET'
             signingConfig signingConfigs.btctestnet
 
@@ -361,6 +365,11 @@ android {
                 ColoredCoinsApiURLs = '{"http://coloredcoins-test.mycelium.com:28342/"}'
                 ColuBlockExplorerApiURLs = '{"http://coloredcoins-test.mycelium.com:28332/api/"}'
                 RMCChangeAddress = "mx92L6iuCfxQUz4cLNU4jJpfWbavVHgYj9"
+
+                // Tron Nile testnet API endpoints
+                TronGridApiServers = '{"https://nile.trongrid.io"}'
+                TronScanUrl = '"https://nile.tronscan.org"'
+                UsdtTrc20Contract = '"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf"'
 
                 ElectrumServers = '{"tcp-tls://wallet-testnet.mycelium.com:19335"}'
                 WapiServers='"[{\\\'cert-sha1\':\\\'ED:C2:82:16:65:8C:4E:E1:C7:F6:A2:2B:15:EC:30:F9:CD:48:F8:DB\\\',\\\'url\\\':\\\'https://mws30.mycelium.com/wapitestnet\\\'}]"'
@@ -387,7 +396,7 @@ android {
         }
 
         huaweiProdnet {
-            applicationId 'com.mycelium.wallet.app'
+            applicationId 'com.tethrus.wallet.app'
             versionName = defaultConfig.versionName
             signingConfig signingConfigs.release
 
@@ -400,6 +409,10 @@ android {
                 ColuBlockExplorerApiURLs = '{"https://coloredcoins.gear.mycelium.com/api/", "https://explorer.coloredcoins.org/api/"}'
                 RMCChangeAddress = "18c91fJmVg7btPjxpwrhgwd37GkVghq9me"
 
+                // Tron mainnet API endpoints (TronGrid)
+                TronGridApiServers = '{"https://api.trongrid.io"}'
+                TronScanUrl = '"https://tronscan.org"'
+                UsdtTrc20Contract = '"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"'
 
                 ElectrumServers = '{"tcp-tls://electrumx-1a.mycelium.com:10000",' +
                         '"tcp-tls://electrumx-1a0.mycelium.com:10000",' +
@@ -487,6 +500,10 @@ android {
         variant.buildConfigField "String", "SEPA_BUY_BITS_OF_GOLD", "\"${flavor.ext.sepaBuyBitsOfGold}\""
         variant.buildConfigField "String", "SEPA_SELL_BITS_OF_GOLD", "\"${flavor.ext.sepaSellBitsOfGold}\""
         variant.buildConfigField "String", "MEDIA_FLOW_URL", "\"${flavor.ext.mediaFlowURL}\""
+        // Tron/USDT-TRC20 configuration
+        variant.buildConfigField "String[]", "TronGridApiServers", "${flavor.ext.TronGridApiServers}"
+        variant.buildConfigField "String", "TronScanUrl", "${flavor.ext.TronScanUrl}"
+        variant.buildConfigField "String", "UsdtTrc20Contract", "${flavor.ext.UsdtTrc20Contract}"
     }
 
     testOptions {

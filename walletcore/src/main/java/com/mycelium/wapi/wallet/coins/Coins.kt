@@ -13,6 +13,8 @@ import com.mycelium.wapi.wallet.eth.coins.EthTest
 import com.mycelium.wapi.wallet.fiat.coins.FiatType
 import com.mycelium.wapi.wallet.fio.coins.FIOMain
 import com.mycelium.wapi.wallet.fio.coins.FIOTest
+import com.mycelium.wapi.wallet.tron.coins.TronMain
+import com.mycelium.wapi.wallet.tron.coins.TronTest
 import java.util.*
 
 val COINS_SET = setOf(
@@ -23,7 +25,8 @@ val COINS_SET = setOf(
         MASSCoin, MASSCoinTest,
         MTCoin, MTCoinTest,
         RMCCoin, RMCCoinTest,
-        BitcoinVaultMain, BitcoinVaultTest
+        BitcoinVaultMain, BitcoinVaultTest,
+        TronMain, TronTest
 )
 
 val COINS = COINS_SET.associateBy { it.id }

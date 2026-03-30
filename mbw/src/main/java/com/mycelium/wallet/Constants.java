@@ -37,6 +37,15 @@ package com.mycelium.wallet;
 import com.mycelium.wallet.GpsLocationFetcher.GpsLocationEx;
 
 public interface Constants {
+   // USDT-TRC20 uses 6 decimal places (1 USDT = 1,000,000 micro-units)
+   long ONE_USDT_MICRO = 1;
+   long ONE_USDT_MILLI = 1000 * ONE_USDT_MICRO;
+   long ONE_USDT_IN_MICRO = 1000000;
+
+   // TRX uses 6 decimal places (1 TRX = 1,000,000 SUN)
+   long ONE_TRX_IN_SUN = 1000000;
+
+   // Legacy constants kept for backward compatibility with existing code
    long ONE_uBTC_IN_SATOSHIS = 100;
    long ONE_mBTC_IN_SATOSHIS = 1000 * ONE_uBTC_IN_SATOSHIS;
    long ONE_BTC_IN_SATOSHIS  = 1000 * ONE_mBTC_IN_SATOSHIS;
@@ -47,6 +56,23 @@ public interface Constants {
    long MS_PR_DAY = MS_PR_HOUR * 24;
 
    int SHORT_HTTP_TIMEOUT_MS = 4000;
+
+   // Tron network parameters
+   int TRON_BLOCK_TIME_IN_SECONDS = 3;
+   int TRON_BLOCKS_PER_DAY = (24 * 60 * 60) / TRON_BLOCK_TIME_IN_SECONDS;
+
+   // USDT TRC20 contract addresses
+   String USDT_TRC20_CONTRACT_MAINNET = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+   String USDT_TRC20_CONTRACT_TESTNET = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
+
+   // TronGrid API endpoints
+   String TRONGRID_MAINNET_API = "https://api.trongrid.io";
+   String TRONGRID_NILE_TESTNET_API = "https://nile.trongrid.io";
+   String TRONGRID_SHASTA_TESTNET_API = "https://api.shasta.trongrid.io";
+
+   // Tronscan block explorer
+   String TRONSCAN_MAINNET_URL = "https://tronscan.org";
+   String TRONSCAN_TESTNET_URL = "https://nile.tronscan.org";
 
    /**
     * Settings and their default values
@@ -67,14 +93,14 @@ public interface Constants {
    String CURRENT_CURRENCIES_SETTING = "CurrentCurrencies";
    String SELECTED_CURRENCIES = "selectedFiatCurrencies";
    String DEFAULT_CURRENCY = "USD";
-   String DEFAULT_EXCHANGE = "Bitfinex";
+   String DEFAULT_EXCHANGE = "Binance";
    String DENOMINATION_SETTING = "Denomination";
    String EXCHANGE_RATE_SETTING = "currentRateName";
    String MINER_FEE_SETTING = "MinerFeeEstimationSetting";
    String KEY_MANAGEMENT_LOCKED_SETTING = "KeyManagementLocked";
-   String MYCELIUM_WALLET_HELP_URL = "http://www.mycelium.com/wallet/help_20.html";
+   String TETHRUS_WALLET_HELP_URL = "https://tron.network/wallet/help";
    String PLAYSTORE_BASE_URL = "https://play.google.com/store/apps/details?id=";
-   String DIRECT_APK_URL = "https://wallet.mycelium.com";
+   String DIRECT_APK_URL = "https://wallet.tethrus.com";
    String LANGUAGE_SETTING = "user_language";
    String IGNORED_VERSIONS = "ignored_versions";
    String TOR_MODE = "tor_mode";
@@ -82,15 +108,15 @@ public interface Constants {
    String CHANGE_ADDRESS_MODE = "change_type";
    String LAST_FIO_SENDER = "fio_sender";
 
-   // Ledger preferences
+   // Ledger preferences (kept for backward compatibility)
    String LEDGER_SETTINGS_NAME = "ledger_settings";
    String LEDGER_DISABLE_TEE_SETTING = "ledger_disable_tee";
    String LEDGER_UNPLUGGED_AID_SETTING = "ledger_unplugged_aid";
 
-   String TAG = "MyceliumWallet";
+   String TAG = "TethrusWallet";
 
-   // Local Trader constants
-   String LOCAL_TRADER_SETTINGS_NAME = "localTrader.settings";
+   // Trading platform constants (replaces Local Trader)
+   String LOCAL_TRADER_SETTINGS_NAME = "trading.settings";
    String LOCAL_TRADER_ADDRESS_SETTING = "traderAddress";
    String LOCAL_TRADER_KEY_SETTING = "traderPrivateKey";
    String LOCAL_TRADER_ACCOUNT_ID_SETTING = "traderAccountId";
@@ -107,32 +133,31 @@ public interface Constants {
    String LOCAL_TRADER_PLAY_SOUND_ON_TRADE_NOTIFICATION_SETTING = "playSoundOnTradeNotification";
    String LOCAL_TRADER_USE_MILES_SETTING = "useMiles";
    String LOCAL_TRADER_GCM_SETTINGS_NAME = "localTrader.gcm.settings";
-   String LOCAL_TRADER_HELP_URL = "http://www.mycelium.com/lt/help.html";
-
-   String LOCAL_TRADER_MAP_URL = "http://www.mycelium.com/lt/m";
+   String LOCAL_TRADER_HELP_URL = "https://tron.network/wallet/help";
+   String LOCAL_TRADER_MAP_URL = "https://tronscan.org";
 
    String IGNORE_NEW_API = "NewApi";
 
    String TRANSACTION_ID_INTENT_KEY = "transaction_id";
    String TRANSACTION_FIAT_VALUE_KEY = "transaction_fiat_value";
 
-   int BITCOIN_BLOCKS_PER_DAY = (24 * 60) / 10;
+   int BITCOIN_BLOCKS_PER_DAY = TRON_BLOCKS_PER_DAY;
+   int BTC_BLOCK_TIME_IN_SECONDS = TRON_BLOCK_TIME_IN_SECONDS;
 
    // Minimum age of the PIN in blocks, so that we allow a second wordlist backup
-   int MIN_PIN_BLOCKHEIGHT_AGE_ADDITIONAL_BACKUP = 2 * BITCOIN_BLOCKS_PER_DAY;
+   int MIN_PIN_BLOCKHEIGHT_AGE_ADDITIONAL_BACKUP = 2 * TRON_BLOCKS_PER_DAY;
 
    // Minimum age of the PIN in blocks, until you can reset the PIN
-   int MIN_PIN_BLOCKHEIGHT_AGE_RESET_PIN = 7 * BITCOIN_BLOCKS_PER_DAY;
+   int MIN_PIN_BLOCKHEIGHT_AGE_RESET_PIN = 7 * TRON_BLOCKS_PER_DAY;
    // Force user to read the warnings about additional backups
    int WAIT_SECONDS_BEFORE_ADDITIONAL_BACKUP = 60;
 
    String FAILED_PIN_COUNT = "failedPinCount";
 
    String SETTING_TOR = "useTor";
-   String SETTING_DENOMINATION = "bitcoin_denomination";
-   String SETTING_MINER_FEE = "miner_fee";
+   String SETTING_DENOMINATION = "usdt_denomination";
+   String SETTING_MINER_FEE = "network_fee";
    long CONFIG_UPDATE_PERIOD_MINS = 20;
-   int BTC_BLOCK_TIME_IN_SECONDS = 600;
 
    String BAD_REQUEST_HTTP_CODE = "400";
 }
