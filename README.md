@@ -1,219 +1,434 @@
-Beta channel
-============
+# Tethrus Wallet
 
-In order to receive updates quicker than others, you need to enable beta versions of the software in
-[Google Play](https://play.google.com/apps/testing/com.mycelium.wallet)
+Android cryptocurrency wallet — forked from Mycelium — supporting **Bitcoin**, **Tron/TRC20**, and **Ethereum**. This document is a developer build guide. All version numbers and commands come directly from the project's build files.
 
-As beta testers, please make sure you have a recent **backup of the masterseed** and all **private keys** inside Mycelium. Beta testers will experience many bugs.
-So far, restoring the wallet from masterseed has never been necessary, but we offer no guarantees.
+---
 
-Building
-========
+## Table of Contents
 
-To build everything from source, simply checkout the source and build using gradle on the build system you need:
+1. [Prerequisites](#prerequisites)
+2. [Environment Setup](#environment-setup)
+3. [Repository Setup](#repository-setup)
+4. [Configuration](#configuration)
+5. [Building](#building)
+6. [Signing](#signing)
+7. [Testing](#testing)
+8. [APK Verification](#apk-verification)
+9. [Deterministic Builds](#deterministic-builds)
+10. [CI/CD](#cicd)
+11. [Troubleshooting](#troubleshooting)
+12. [License](#license)
 
- * JDK 1.8
+---
 
-The project layout is designed to be used with a recent version of Android Studio (currently 4.1.2)
+## Prerequisites
 
-#### Build commands
+| Tool | Required Version | Notes |
+|---|---|---|
+| JDK | **17** | `openjdk-17-jdk`; Java source/target compatibility set to `JavaVersion.VERSION_17` |
+| Android SDK (compileSdk) | **36** | Android 16 |
+| Android Build Tools | **34.0.0** | |
+| Android NDK | **21.1.6352462** | |
+| CMake | **3.22.1** | Required by native code |
+| Kotlin | **2.0.21** | Via Gradle plugin; KSP `2.0.21-1.0.28` |
+| Gradle (wrapper) | **8.13** | Managed by `gradlew`; do not install separately |
 
-To get the source code, type:
+---
 
-    git clone https://github.com/mycelium-com/wallet-android.git
-    cd wallet-android
-    git submodule update --init --recursive
+## Environment Setup
 
-Linux/Mac type:
+### JDK 17
 
-    ./gradlew clean test mbw::assembleProdnetRelease mbw::assembleBtctestnetRelease
-
-Windows type:
-
-    gradlew.bat clean test mbw::assembleProdnetRelease mbw::assembleBtctestnetRelease
-
- - Voila, look into `mbw/build/outputs/apk/` to see the generated apk.
-   There are versions for both prodnet and testnet.
-
-Alternatively you can install the latest version from the [Play Store](https://play.google.com/store/apps/details?id=com.mycelium.wallet).
-
-If you cannot access the Play store, you can obtain the apk directly from the Mycelium Bitcoin
-Wallet [download page](https://wallet.mycelium.com/).
-
-App Download Verification
--------------------------
-
-All versions released by Mycelium are signed with the same release keys. If you do not trust the apk
-you can check that signature with
-[apksigner](https://developer.android.com/studio/command-line/apksigner.html#options-verify):
-
-```
-apksigner verify --print-certs --verbose mycelium.apk
+**macOS (Homebrew):**
+```bash
+brew install openjdk@17
+export JAVA_HOME="$(brew --prefix openjdk@17)"
 ```
 
-The output should look like:
-
-```
-Verifies
-Verified using v1 scheme (JAR signing): true
-Verified using v2 scheme (APK Signature Scheme v2): true
-Verified using v3 scheme (APK Signature Scheme v3): false
-Number of signers: 1
-Signer #1 certificate DN: CN=Mycelium Developers, O=Mycelium, L=Vienna, C=AT
-Signer #1 certificate SHA-256 digest: b8e59d4a60b65290efb2716319e50b94e298d7a72c76c2119eb7d8d3afac302e
-Signer #1 certificate SHA-1 digest: be575ec3b3b52e0b2392146cbdb245c91ef5a04f
-Signer #1 certificate MD5 digest: 7aec063675b0206aba3b6175b89abc7d
-Signer #1 key algorithm: RSA
-Signer #1 key size (bits): 2048
-Signer #1 public key SHA-256 digest: 6d9c0cda9dcd3ec5efcdca41243829b1dcf1e9a91c6309bca167807282590a20
-Signer #1 public key SHA-1 digest: b34336038c7ca678285c14aebe78b7d5add90e4c
-Signer #1 public key MD5 digest: a78bdb2b6d074db4b1ff12eb9cddcfa3
-WARNING: ...
+**Linux (apt):**
+```bash
+sudo apt-get update
+sudo apt-get install -y openjdk-17-jdk
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 ```
 
-Deterministic builds
-====================
+Verify:
+```bash
+java -version   # must show 17.x
+```
 
-To validate the Mycelium image you obtain from Google Play Store, you can rebuild the Mycelium
-wallet yourself using [Podman](https://podman.io/getting-started/) and compare both images following these steps:
+### Android SDK (command-line tools)
 
-* Get the source as above
-* Create your own builder image from our simple Dockerfile
+```bash
+# Download command-line tools from https://developer.android.com/studio#command-tools
+# Then install the required SDK components:
+sdkmanager "platform-tools" \
+           "platforms;android-36" \
+           "build-tools;34.0.0" \
+           "ndk;21.1.6352462" \
+           "cmake;3.22.1"
+```
 
-      $ podman build --no-cache --tag mycelium_builder .
+### Environment Variables
 
-* Build using disorderfs to eliminate non-determinism caused by file ordering
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64   # adjust for your OS
+export ANDROID_HOME=$HOME/Android/Sdk                  # or wherever your SDK lives
+export PATH=$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/tools/bin
+```
 
-      $ podman run --rm --interactive --tty \
-          --device /dev/fuse \
-          --cap-add SYS_ADMIN \
-          --volume .:/app \
-          mycelium_builder \
-          bash -c "apt update;
-          apt install -y disorderfs;
-          mkdir /project/
-          disorderfs --sort-dirents=yes --reverse-dirents=no /app/ /project/;
-          cd /project/
-          ./gradlew -x lint -x test clean :mbw:assembleProdnetRelease;"
+Add these to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.) so they persist.
 
-  If you see errors about local paths not being found, remove/move away `local.properties`.
+### Gradle JVM Settings
 
-  As container might run as a different user, its generated files will also be "not yours".
-  Make them yours using `chown` as super user.
-  
-  The app can now be found in `mbw/build/outputs/apk/prodnet/release/mbw-prodnet-release.apk`.
-  
-  As maintainer with release keys you want to run a slightly different command:
-  Add these parameters: `--volume 'path/to/keys.properties':/project/keys.properties --volume 'path/to/keystore_mbwProd':/project/keystore_mbwProd --volume 'path/to/keystore_mbwTest':/project/keystore_mbwTest`
-  Build all these targets `:mbw:assBtctRel :mbw:assProdRel :mbw:assBtctDeb :mbw:assProdDeb`
-  and to get an error on missing release keys, add this gradle option `-PenforceReleaseSigning`
-  
-  Note: for those who use Docker Toolbox $(pwd) should be under your home user folder since this is the [only folder that is shared with VM](https://github.com/docker/kitematic/issues/2738).
+The project ships `gradle.properties` with the following JVM tuning already in place — no manual changes needed:
 
-* Retrieve Google Play Mycelium APK from your phone
-  Gets package path:
+```properties
+org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1024m
+kotlin.daemon.jvmargs=-Xmx4g
+android.enableJetifier=true
+android.useAndroidX=true
+android.nonTransitiveRClass=false
+android.nonFinalResIds=false
+org.gradle.jvm.toolchain.install=true
+org.gradle.java.installations.auto-detect=true
+org.gradle.java.installations.auto-download=true
+```
 
-        $ adb shell pm path com.mycelium.wallet
-        package:/data/app/com.mycelium.wallet-1/base.apk
+---
 
-  Retrieve file:
+## Repository Setup
 
-        $ adb pull /data/app/com.mycelium.wallet-1/base.apk mycelium-signed.apk
-        
-* Extract content from both apks you want to compare, using [ApkTool](https://ibotpeaches.github.io/Apktool/):
+### Clone
 
-        java -jar ~/path/to/apktool.jar d mbw-prodnet-release.apk
-        java -jar ~/path/to/apktool.jar d mycelium-signed.apk
+```bash
+git clone https://github.com/bitbybit91/wallet-tethrus.git
+cd wallet-tethrus
+```
 
-* Compare signed apk with unsigned locally built apk using a diff tool
+### Initialise Submodules
 
-        diff --brief --recursive  mbw-prodnet-release/ mycelium-signed/ | grep -v "META-INF/CERT.RSA\|META-INF/CERT.SF\|META-INF/MANIFEST.MF"
+```bash
+git submodule update --init --recursive
+```
 
-* The expected difference between these files are elements that depend on the signature, that only
-  the project's maintainer can reproduce:
-  
-  * `original/META-INF/CERT.RSA` 
-  * `original/META-INF/CERT.SF` 
-  * `original/META-INF/MANIFEST.MF`
+#### Git Submodules
 
-Features
-========
+| Path | Remote |
+|---|---|
+| `wallet-android-modularization-tools` | `https://github.com/mycelium-com/wallet-android-modularization-tools` |
+| `fiosdk_kotlin` | `https://github.com/mycelium-com/fiosdk_kotlin` |
 
-With the Mycelium Bitcoin Wallet you can send and receive Bitcoins using your mobile phone.
+### Project Module Structure
 
- - HD enabled - manage multiple accounts and never reuse addresses ([Bip32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)/[Bip44](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki) compatible)
- - Masterseed based - make one backup and be safe for ever. ([Bip39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki))
- - 100% control over your private keys, they never leave your device unless you export them
- - No block chain download - install and run in seconds
- - Ultra fast connection to the Bitcoin network through our super nodes
- - For enhanced privacy and availability you can connect to our super nodes via a tor-hidden service ( *.onion* address)
- - Watch-only addresses (single or xPub) & private key (single or xPriv) import for secure cold-storage integration
- - Directly spend from paper wallets (single key, xPriv or master seed)
- - Trezor enabled - directly spend from trezor-secured accounts.
- - [Mycelium Entropy](https://mycelium.com/entropy) compatible Shamir-Secret-Shared 2-out-of-3 keys spending
- - Secure your wallet with a PIN
- - Compatible with other bitcoin services through the `bitcoin:` URI scheme
+```
+wallet-tethrus/
+├── mbw/                          # Main wallet app (UI, flavors, signing)
+├── walletcore/                   # Core wallet logic (Bitcoin, ETH, Tron, TRC20)
+├── walletmodel/                  # Shared wallet data models
+├── wapi/                         # Mycelium WAPI network layer
+├── bitlib/                       # Bitcoin primitives library (Apache 2.0)
+├── lt-api/                       # Local Trader API (Apache 2.0)
+├── mbwlib/                       # Shared MBW utilities
+├── view/                         # Shared UI components
+├── trezor/                       # Trezor hardware wallet support
+├── btchip/                       # Ledger hardware wallet support
+├── LVL/                          # Android License Verification Library
+├── wallet-console/               # Console/CLI wallet tool
+├── androidfioserializationprovider/  # FIO serialization
+├── fiosdk/                       # FIO SDK integration
+├── testhelper/                   # Shared test utilities
+└── wallet-android-modularization-tools/  # Modularization tooling (submodule)
+    └── modularization-lib/
+```
 
+> **Server-only build:** when `MYCELIUM_BUILD_SYSTEM=server` is set, `settings.gradle` skips the app modules and includes only the library modules (`walletcore`, `walletmodel`, `wapi`, `bitlib`, `lt-api`, `mbwlib`, `view`, `testhelper`).
 
-Please note that bitcoin is still experimental and this app comes with no warranty - while we make sure to adhere to the highest standards of software craftsmanship we can not exclude that the software contains bugs. Please make sure you have backups of your private keys and do not use this for more than you are willing to lose.
+---
 
-This application's source is published at https://github.com/mycelium-com/wallet
-We need your feedback. If you have a suggestion or a bug to report [create an issue](https://github.com/mycelium-com/wallet/issues).
+## Configuration
 
-More features:
- - Sources [available for review](https://github.com/mycelium-com/wallet-android)
- - Multiple HD accounts, private keys, external xPub or xPriv accounts
- - Multiple Bitcoin denominations: BTC, mBTC, bits and uBTC
- - View your balance in multiple fiat currencies: USD, AUD, CAD, CHF, CNY, DKK, EUR, GBP, HKD, JPY, NZD, PLN, RUB, SEK, SGD, THB, and many more
- - Send and receive by specifying an amount in fiat and switch between fiat and BTC while entering the amount
- - Address book for commonly used addresses
- - Transaction history with detailed information and local stored comments
- - Import private keys using SIPA (the ones beginning with a 5) and mini private key format (Casascius private keys) from QR-codes or clipboard
- - Export private-, xPub- or xPriv-keys as QR-codes, on clipboard or share with other applications
- - Share your bitcoin address using Twitter, Facebook, email and more.
- - Integrated QR-code scanner
- - Client side load balancing between three 100% redundant server nodes located in different data centers.
- - Sign Messages using your private keys (compatible with bitcoin-qt)
+### Product Flavors
 
-Authors
-=======
- - Jan Møller
- - [Andreas Petersson](https://github.com/apetersson)
- - [Daniel Weigl](https://github.com/DanielWeigl)
- - [Jan Dreske](https://github.com/jandreske)
- - Dmitry Murashchik
- - Constantin Vennekel
- - [Leo Wandersleb](https://github.com/Giszmo)
- - [Daniel Krawisz](https://github.com/DanielKrawisz)
- - [Jerome Rousselot](https://github.com/jeromerousselot)
- - [Nelson Melina](https://github.com/DaLN)
- - [Elvis Kurtnebiev](https://github.com/xElvis89x)
- - [Sergey Dolgopolov](https://github.com/itserg)
- - [Sergey Lappo](https://github.com/sergeylappo)
- - Alexander Makarov
- - [Nadia Poletova](https://github.com/poletova-n)
- - [Kristina Tezieva](https://github.com/agneslovelace)
- - [Nuru Nabiyev](https://github.com/NuruNabiyev)
- 
+Defined in `mbw/build.gradle`:
 
-Credits
-=======
-Thanks to all collaborators who provided us with code or helped us with integrations!
-Just to name a few:
+| Flavor | Application ID | Purpose |
+|---|---|---|
+| `prodnet` | `com.mycelium.wallet` | Main production network build |
+| `btctestnet` | *(testnet variant)* | Bitcoin testnet build |
+| `huaweiProdnet` | *(Huawei variant)* | Huawei AppGallery production build |
 
- - [Nicolas Bacca from Ledger](https://github.com/btchip)
- - Sipa, Marek and others from Trezor
- - Jani and Aleš from Cashila
- - [Kalle Rosenbaum, Bip120/121](https://github.com/kallerosenbaum)
- - David and Alex from Glidera
- - [Wiz](https://twitter.com/wiz) for helping us with KeepKey
- - Tom Bitton and Asa Zaidman from Simplex
- - (if you think you should be mentioned here, just notify us)
+Current version: `versionCode 3210000`, `versionName '3.21.0.0'`
 
-Thanks to Jethro for tirelessly testing the app during beta development.
+### Version Catalog (`gradle/libs.versions.toml`)
 
-Thanks to our numerous volunteer translators who provide high-quality translations in many languages. Your name should be listed here, please contact me so I know you want to be included.
+| Key | Value |
+|---|---|
+| `android-minSdk` | `24` |
+| `android-compileSdk` | `36` |
+| `android-targetSdk` | `36` |
+| `kotlin` | `2.0.21` |
+| `androidGradlePlugin` | `8.12.1` |
+| `sqldelight` | `2.0.2` |
+| `web3j` | `4.12.3` |
+| `bouncycastle` | `1.79` |
+| `firebaseBomVersion` | `33.10.0` |
+| `navigation` | `2.8.8` |
+| `jackson` | `2.9.6` |
+| KSP | `2.0.21-1.0.28` |
 
-Thanks to Johannes Zweng for his testing and providing pull requests for fixes.
+### Legacy ext Settings (`ext_settings.gradle`)
 
-Thanks to all beta testers to provide early feedback.
+Key dependency versions used by older modules:
+
+```groovy
+gsonVersion          = '2.8.5'
+okhttpVersion        = '2.7.5'
+appCompatVersion     = '1.7.0'
+materialVersion      = '1.12.0'
+constraintLayoutVersion = '2.2.0'
+workManagerVersion   = '2.7.1'
+```
+
+---
+
+## Building
+
+All commands use the Gradle wrapper (`./gradlew`). The wrapper automatically downloads Gradle **8.13**.
+
+### Debug Builds
+
+```bash
+# Prodnet debug APK
+./gradlew mbw:assembleProdnetDebug
+
+# Testnet debug APK
+./gradlew mbw:assembleBtctestnetDebug
+
+# All debug APKs
+./gradlew mbw:assembleDebug
+```
+
+### Release Builds
+
+```bash
+# Prodnet release APK
+./gradlew mbw:assembleProdnetRelease
+
+# Testnet release APK
+./gradlew mbw:assembleBtctestnetRelease
+
+# All release APKs
+./gradlew mbw:assembleRelease
+```
+
+### AAB (Android App Bundle)
+
+```bash
+./gradlew mbw:bundleProdnetRelease
+```
+
+### Output Paths
+
+| Artifact | Path |
+|---|---|
+| Prodnet APK | `mbw/build/outputs/apk/prodnet/release/` |
+| Testnet APK | `mbw/build/outputs/apk/btctestnet/release/` |
+| Huawei APK | `mbw/build/outputs/apk/huaweiProdnet/release/` |
+| AAB | `mbw/build/outputs/bundle/prodnetRelease/` |
+
+### Collect APKs
+
+```bash
+# Copies all APKs into /tmp/release_mbw/comp_<timestamp>/
+# and creates release_mbw_<versionName>.zip
+./collectApks.sh
+```
+
+### Full Clean + Test + Build (mirrors CI)
+
+```bash
+./gradlew clean test lint build
+```
+
+### Server-Only Build (library modules only)
+
+```bash
+MYCELIUM_BUILD_SYSTEM=server ./gradlew build
+```
+
+### Windows
+
+```bat
+gradlew.bat mbw:assembleProdnetDebug
+gradlew.bat mbw:assembleProdnetRelease
+```
+
+---
+
+## Signing
+
+### Debug Keystore
+
+The project includes a shared debug keystore (`debug.keystore`) with the following credentials (do not use for production):
+
+| Property | Value |
+|---|---|
+| Store password | `android` |
+| Key alias | `androiddebugkey` |
+| Key password | `android` |
+
+### Release Signing (`keys.properties`)
+
+Create a `keys.properties` file in the project root (it is gitignored). The file must contain:
+
+```properties
+prodKeyStore=/absolute/path/to/keystore_mbwProd
+prodKeyAlias=your-prod-alias
+prodKeyStorePassword=your-prod-store-password
+prodKeyAliasPassword=your-prod-key-password
+
+testKeyStore=/absolute/path/to/keystore_mbwTest
+testKeyAlias=your-test-alias
+testKeyStorePassword=your-test-store-password
+testKeyAliasPassword=your-test-key-password
+```
+
+> `keys.properties`, `keystore_mbwProd`, and `keystore_mbwTest` are all listed in `.gitignore` and will never be committed.
+
+### Generating a Keystore
+
+```bash
+keytool -genkeypair \
+  -keystore keystore_mbwProd \
+  -alias your-prod-alias \
+  -keyalg RSA \
+  -keysize 2048 \
+  -validity 10000
+```
+
+### Enforcing Release Signing in CI
+
+Pass `-PenforceReleaseSigning` to fail the build immediately if `keys.properties` is missing or incomplete:
+
+```bash
+./gradlew mbw:assembleProdnetRelease -PenforceReleaseSigning
+```
+
+---
+
+## Testing
+
+### Unit Tests
+
+```bash
+./gradlew test
+```
+
+### Instrumentation Tests (requires connected device/emulator)
+
+```bash
+./gradlew connectedAndroidTest
+```
+
+### Lint
+
+```bash
+./gradlew lint
+```
+
+### All Checks
+
+```bash
+./gradlew clean test lint
+```
+
+---
+
+## APK Verification
+
+```bash
+apksigner verify --verbose mbw/build/outputs/apk/prodnet/release/mbw-prodnet-release.apk
+```
+
+---
+
+## Deterministic Builds
+
+The project ships a `Dockerfile` for reproducible builds. The image is based on `ubuntu:18.04` and installs:
+
+- `openjdk-17-jdk`
+- Android SDK `11076708`
+- Build Tools `34.0.0`
+- NDK `21.1.6352462`
+- CMake `3.22.1`
+- Android platform `34`
+
+### Build with Podman or Docker
+
+```bash
+# Build the image
+podman build -t tethrus-builder .
+# (or: docker build -t tethrus-builder .)
+
+# Run the build inside the container
+podman run --rm -v "$(pwd)":/workspace -w /workspace tethrus-builder \
+  ./gradlew clean mbw:assembleProdnetRelease
+```
+
+### Verify Determinism with disorderfs
+
+```bash
+# Mount the source directory with randomised directory order
+disorderfs --shuffle-dirents=yes /path/to/source /path/to/mount
+
+# Build twice and compare checksums
+sha256sum build1.apk build2.apk
+```
+
+### checkBuild.sh
+
+```bash
+# Usage: ./checkBuild.sh FILE REVISION [RETRIES]
+# Requires apktool.jar in the project root
+# Works in /tmp/mbwDeterministicBuild/
+./checkBuild.sh mbw-prodnet-release.apk <git-revision> 3
+```
+
+---
+
+## CI/CD
+
+The project uses GitLab CI (`.gitlab-ci.yml`).
+
+**Build command used in CI:**
+```bash
+./gradlew clean test lint build $gradleParam -Pbranch=$CI_BUILD_REF_NAME
+```
+
+- **`master` branch:** no extra params (full release build)
+- **Other branches:** `-PskipProguard` is appended
+
+> **Note:** GitHub Actions is not yet configured for this repository.
+
+---
+
+## Troubleshooting
+
+| Symptom | Likely Cause | Fix |
+|---|---|---|
+| `Could not resolve :wallet-android-modularization-tools` | Submodules not initialised | `git submodule update --init --recursive` |
+| `SDK location not found` | Missing `local.properties` | Create `local.properties` with `sdk.dir=/path/to/android/sdk` |
+| `Unsupported class file major version` | Wrong JDK version | Ensure `java -version` shows **17**; set `JAVA_HOME` correctly |
+| NDK not found errors | NDK not installed | `sdkmanager "ndk;21.1.6352462"` |
+| Gradle daemon OOM | Insufficient heap | Already set to `-Xmx4g` in `gradle.properties`; close other applications |
+| `keys.properties (No such file or directory)` | Missing signing config | Create `keys.properties` in project root (see [Signing](#signing)) |
+| Android SDK 36 not found | `compileSdk 36` requires recent SDK | `sdkmanager "platforms;android-36"` |
+
+---
+
+## License
+
+- **`bitlib`**, **`lt-api`**, **`wapi`** — Apache License 2.0
+- Other modules retain their respective upstream licenses.
+
