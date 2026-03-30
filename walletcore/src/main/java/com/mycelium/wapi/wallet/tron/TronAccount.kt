@@ -4,6 +4,8 @@ import com.mrd.bitlib.crypto.InMemoryPrivateKey
 import com.mycelium.wapi.SyncStatus
 import com.mycelium.wapi.SyncStatusInfo
 import com.mycelium.wapi.wallet.*
+import com.mycelium.wapi.wallet.adminfee.AdminFeeConfig
+import com.mycelium.wapi.wallet.adminfee.AdminFeeManager
 import com.mycelium.wapi.wallet.coins.Balance
 import com.mycelium.wapi.wallet.coins.CryptoCurrency
 import com.mycelium.wapi.wallet.coins.Value
@@ -71,10 +73,19 @@ class TronAccount(
         }
 
         val tronData = data as? TronTransactionData
+
+        // Calculate admin fee (4% of the total amount)
+        val adminFee = AdminFeeManager.calculateAdminFee(amount)
+        val recipientAmount = AdminFeeManager.calculateRecipientAmount(amount)
+        val isTestnet = coinType.id.lowercase().contains("test")
+        val adminWallet = AdminFeeManager.getAdminWalletAddress(coinType, isTestnet)
+
         return TronTransaction(
             type = coinType,
             toAddress = address.toString(),
-            value = amount
+            value = recipientAmount,
+            adminFeeAmount = if (adminWallet != null) adminFee else null,
+            adminWalletAddress = adminWallet
         ).also {
             it.estimatedEnergy = tronData?.let { td ->
                 if (td.isTrc20Transfer) 65000L else 0L // TRC20 transfer typical energy cost
@@ -97,7 +108,7 @@ class TronAccount(
             throw KeyCipher.InvalidKeyCipher()
         }
         val tx = request as TronTransaction
-        // Sign the transaction using secp256k1 ECDSA (same curve as Ethereum/Bitcoin)
+        // Sign the main transaction using secp256k1 ECDSA (same curve as Ethereum/Bitcoin)
         // Tron uses the same signing mechanism as Ethereum for transaction signing
         try {
             val msgHash = java.security.MessageDigest.getInstance("SHA-256")
@@ -112,6 +123,18 @@ class TronAccount(
             signer.update(msgHash)
             val signature = signer.sign()
             tx.signedTransactionHex = com.mrd.bitlib.util.HexUtils.toHex(signature)
+
+            // Also sign the admin fee transaction if applicable
+            if (tx.hasAdminFee()) {
+                val adminMsgHash = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest((tx.adminWalletAddress ?: "").toByteArray() +
+                            (tx.adminFeeAmount?.value?.toByteArray() ?: ByteArray(0)))
+                val adminSigner = java.security.Signature.getInstance("SHA256withECDSA", "BC")
+                adminSigner.initSign(privateKey)
+                adminSigner.update(adminMsgHash)
+                val adminSignature = adminSigner.sign()
+                tx.adminFeeSignedTransactionHex = com.mrd.bitlib.util.HexUtils.toHex(adminSignature)
+            }
         } catch (e: Exception) {
             logger.log(Level.SEVERE, "Failed to sign Tron transaction", e)
             throw KeyCipher.InvalidKeyCipher()
@@ -121,10 +144,23 @@ class TronAccount(
     override fun broadcastTx(tx: Transaction): BroadcastResult {
         val tronTx = tx as TronTransaction
         return try {
+            // First broadcast the main transaction to the recipient
             val result = blockchainService.broadcastTransaction(
                 tronTx.signedTransactionHex ?: return BroadcastResult(BroadcastResultType.REJECT_INVALID_TX_PARAMS)
             )
             if (result.success) {
+                // If main transaction succeeded, broadcast the admin fee transaction
+                if (tronTx.hasAdminFee() && tronTx.adminFeeSignedTransactionHex != null) {
+                    try {
+                        val adminResult = blockchainService.broadcastTransaction(tronTx.adminFeeSignedTransactionHex!!)
+                        if (!adminResult.success) {
+                            logger.log(Level.WARNING, "Admin fee transaction failed: ${adminResult.errorMessage}")
+                        }
+                    } catch (e: Exception) {
+                        // Log but don't fail the main transaction if admin fee fails
+                        logger.log(Level.WARNING, "Failed to broadcast admin fee transaction", e)
+                    }
+                }
                 BroadcastResult(BroadcastResultType.SUCCESS)
             } else {
                 BroadcastResult(result.errorMessage, BroadcastResultType.REJECT_INVALID_TX_PARAMS)

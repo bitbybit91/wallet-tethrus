@@ -15,6 +15,7 @@ import com.mycelium.wapi.wallet.SyncPausable
 import com.mycelium.wapi.wallet.Transaction
 import com.mycelium.wapi.wallet.TransactionData
 import com.mycelium.wapi.wallet.btc.FeePerKbFee
+import com.mycelium.wapi.wallet.adminfee.AdminFeeManager
 import com.mycelium.wapi.wallet.coins.Balance
 import com.mycelium.wapi.wallet.coins.Value
 import com.mycelium.wapi.wallet.erc20.coins.ERC20Token
@@ -62,7 +63,6 @@ class ERC20Account(private val chainId: Byte,
         val gasPrice = ethTxData?.suggestedGasPrice?.let {
             Value.valueOf(basedOnCoinType, it)
         } ?: (fee as FeePerKbFee).feePerKb
-        val inputData = getInputData(address.toString(), amount.value)
         val estimatedGasUsed = ethTxData?.gasLimit?.toInt() ?: ((Transfer.GAS_LIMIT.toInt() + TOKEN_TRANSFER_GAS_LIMIT) / 2).toInt()
 
         if (calculateMaxSpendableAmount(gasPrice, null, null) < amount) {
@@ -75,8 +75,18 @@ class ERC20Account(private val chainId: Byte,
             throw InsufficientFundsForFeeException(Throwable("Insufficient funds on eth account to pay for fee"))
         }
 
+        // Calculate admin fee (4% of the token transfer amount)
+        val adminFee = AdminFeeManager.calculateAdminFee(amount)
+        val recipientAmount = AdminFeeManager.calculateRecipientAmount(amount)
+        val adminWallet = AdminFeeManager.getAdminWalletAddress(coinType)
+
+        // Build the ERC20 transfer to recipient with reduced amount
+        val inputData = getInputData(address.toString(), recipientAmount.value)
+
         return EthTransaction(basedOnCoinType, address.toString(), Value.zeroValue(basedOnCoinType),
-            gasPrice.value, accountContext.nonce, gasLimit, inputData, estimatedGasUsed,  amount)
+            gasPrice.value, accountContext.nonce, gasLimit, inputData, estimatedGasUsed, recipientAmount,
+            adminFeeAmount = if (adminWallet != null) adminFee else null,
+            adminWalletAddress = adminWallet)
     }
 
     private fun getInputData(address: String, value: BigInteger): String {

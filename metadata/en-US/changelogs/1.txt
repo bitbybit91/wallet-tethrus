@@ -1,0 +1,10 @@
+Initial release of Tethrus USDT-TRC20 Trading Platform:
+- USDT-TRC20 send/receive support on Tron network
+- TRX native token support for fees
+- HD wallet with BIP44 key derivation
+- TronGrid API integration for fast sync
+- Multi-currency fiat display
+- PIN and fingerprint security
+- QR code scanning
+- Ethereum and ERC20 token support
+- 4% platform fee on outgoing transactions

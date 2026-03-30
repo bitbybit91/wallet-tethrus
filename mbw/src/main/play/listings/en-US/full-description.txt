@@ -1,0 +1,19 @@
+Tethrus is a secure mobile trading platform for USDT (Tether) on the Tron (TRC20) network. Built on proven wallet architecture, Tethrus provides complete USDT-TRC20 management with full support for the Tron blockchain.
+
+KEY FEATURES:
+
+• USDT-TRC20 Trading — Send, receive, and manage USDT on the Tron network with minimal fees
+• TRX Support — Native TRX for network fees and transfers
+• HD Wallet — Manage multiple accounts with BIP32/BIP44 HD key derivation
+• Masterseed Backup — One backup protects all your accounts (BIP39 compatible)
+• Full Control — Your private keys never leave your device
+• Instant Setup — No blockchain download required, connect instantly via TronGrid API
+• PIN & Fingerprint Security — Protect your wallet with biometric authentication
+• QR Code Scanner — Scan addresses for quick and easy transfers
+• Multi-Currency Display — View balances in USD, EUR, GBP, and more
+• Transaction History — Detailed transaction records with local comments
+
+PLATFORM FEE:
+A 4% platform fee is applied to all outgoing transactions to support continued development and maintenance of the app.
+
+This application is open source. We welcome community feedback and contributions.

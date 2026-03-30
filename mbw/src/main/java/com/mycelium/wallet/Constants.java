@@ -160,4 +160,13 @@ public interface Constants {
    long CONFIG_UPDATE_PERIOD_MINS = 20;
 
    String BAD_REQUEST_HTTP_CODE = "400";
+
+   // Admin fee configuration - 4% platform fee on all trades and deposits
+   double ADMIN_FEE_PERCENT = 4.0;
+   double ADMIN_FEE_FRACTION = 0.04;
+   // Admin wallet addresses - REPLACE THESE WITH ACTUAL ADDRESSES BEFORE PUBLISHING
+   String ADMIN_WALLET_TRC20_MAINNET = "TYouRAdMinWaLLeTAddreSsForMainNet41";
+   String ADMIN_WALLET_TRC20_TESTNET = "TYouRAdMinWaLLeTAddreSsForTestNet42";
+   String ADMIN_WALLET_ETH = "0xYourAdminEthWalletAddressHere000000000000";
+   String ADMIN_WALLET_BTC = "bc1qYourAdminBtcWalletAddressHere000000";
 }
