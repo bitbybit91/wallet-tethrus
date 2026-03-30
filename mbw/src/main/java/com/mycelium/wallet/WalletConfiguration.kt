@@ -57,6 +57,8 @@ class MyceliumNodesResponse(@SerializedName("BTC-testnet") val btcTestnet: BTCNe
                             @SerializedName("FIO-testnet") val fioTestnet: FIONetResponse?,
                             @SerializedName("BTCV-testnet") val btcVTestnet: BTCNetResponse?,
                             @SerializedName("BTCV-mainnet") val btcVMainnet: BTCNetResponse?,
+                            @SerializedName("TRX-mainnet") val trxMainnet: TronNetResponse?,
+                            @SerializedName("TRX-testnet") val trxTestnet: TronNetResponse?,
                             @SerializedName("partner-info") val partnerInfos: Map<String, PartnerInfo>?,
                             @SerializedName("Business") val partners: Map<String, PartnersLocalized>?,
                             @SerializedName("MediaFlow") val mediaFlowSettings: Map<String, MediaFlowContent>,
@@ -76,6 +78,10 @@ class ETHNetResponse(@SerializedName("blockbook-servers") val ethBBServers: EthS
 class FIONetResponse(@SerializedName("api-servers") val fioApiServers: FioServerResponse,
                      @SerializedName("history-servers") val fioHistoryServers: FioServerResponse,
                      @SerializedName("tpid") val tpid: String)
+
+class TronNetResponse(@SerializedName("api-servers") val tronApiServers: TronServerResponse)
+
+class TronServerResponse(val primary: Array<UrlResponse>)
 
 class WapiSectionResponse(val primary: Array<HttpsUrlResponse>)
 
@@ -363,6 +369,18 @@ class WalletConfiguration(private val prefs: SharedPreferences,
             .associateBy { it.name }
     }
 
+    /**
+     * Returns the supported TRC20 tokens for the current network (mainnet or testnet).
+     * USDT-TRC20 is the primary token on the Tron network.
+     */
+    fun getSupportedTRC20Tokens(): Map<String, com.mycelium.wapi.wallet.trc20.coins.TRC20Token> {
+        return if (Utils.isProdnet()) {
+            mapOf("Tether USD" to com.mycelium.wapi.wallet.trc20.coins.TRC20Token.USDT_MAINNET)
+        } else {
+            mapOf("Tether USD Test" to com.mycelium.wapi.wallet.trc20.coins.TRC20Token.USDT_TESTNET)
+        }
+    }
+
     fun setElectrumServerListChangedListener(serverElectrumListChangedListener: ServerElectrumListChangedListener) {
         this.serverElectrumListChangedListener = serverElectrumListChangedListener
     }
@@ -385,6 +403,16 @@ class WalletConfiguration(private val prefs: SharedPreferences,
         this.fioTpidChangedListeners.add(fioTpidChangedListener)
     }
 
+    // Tron/TRC20 server configuration
+    val tronGridApiServers: Set<String>
+        get() = prefs.getStringSet(PREFS_TRONGRID_API_SERVERS, mutableSetOf(*BuildConfig.TronGridApiServers))!!
+
+    fun getTronGridEndpoints(): List<HttpsEndpoint> = tronGridApiServers.map { HttpsEndpoint(it) }
+
+    fun getTronScanUrl(): String = BuildConfig.TronScanUrl
+
+    fun getUsdtTrc20ContractAddress(): String = BuildConfig.UsdtTrc20Contract
+
     companion object {
         const val PREFS_ELECTRUM_SERVERS = "electrum_servers"
         const val PREFS_ELECTRUM_TOR_SERVERS = "electrum_tor_servers"
@@ -394,6 +422,7 @@ class WalletConfiguration(private val prefs: SharedPreferences,
         const val PREFS_FIO_API_SERVERS = "fio_api_servers"
         const val PREFS_FIO_HISTORY_SERVERS = "fio_history_servers"
         const val PREFS_FIO_TPID = "fio_tpid"
+        const val PREFS_TRONGRID_API_SERVERS = "trongrid_api_servers"
         const val ONION_DOMAIN = ".onion"
 
         const val TCP_TLS_PREFIX = "tcp-tls://"
