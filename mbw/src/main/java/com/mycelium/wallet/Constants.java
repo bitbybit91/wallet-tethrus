@@ -164,7 +164,10 @@ public interface Constants {
    // Admin fee configuration - 4% platform fee on all trades and deposits
    double ADMIN_FEE_PERCENT = 4.0;
    double ADMIN_FEE_FRACTION = 0.04;
-   // Admin wallet addresses - REPLACE THESE WITH ACTUAL ADDRESSES BEFORE PUBLISHING
+   // !! CONFIGURATION REQUIRED !! Replace these placeholder addresses with actual wallet addresses before publishing.
+   // TRC20: Must be valid Tron base58 address (34 chars, starts with 'T')
+   // ETH: Must be valid hex address (42 chars including 0x prefix)
+   // BTC: Must be valid Bitcoin address (legacy, P2SH, or bech32)
    String ADMIN_WALLET_TRC20_MAINNET = "TYouRAdMinWaLLeTAddreSsForMainNet41";
    String ADMIN_WALLET_TRC20_TESTNET = "TYouRAdMinWaLLeTAddreSsForTestNet42";
    String ADMIN_WALLET_ETH = "0xYourAdminEthWalletAddressHere000000000000";
