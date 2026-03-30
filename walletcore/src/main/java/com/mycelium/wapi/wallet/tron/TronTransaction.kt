@@ -3,6 +3,7 @@ package com.mycelium.wapi.wallet.tron
 import com.mycelium.wapi.wallet.Transaction
 import com.mycelium.wapi.wallet.coins.CryptoCurrency
 import com.mycelium.wapi.wallet.coins.Value
+import com.mycelium.wapi.wallet.coins.Value.zeroValue
 
 /**
  * Represents a Tron network transaction (TRX or TRC20 transfer).
@@ -30,6 +31,10 @@ class TronTransaction(
     override fun getId(): ByteArray = txId?.toByteArray() ?: ByteArray(0)
 
     override fun txBytes(): ByteArray = signedTransactionHex?.toByteArray() ?: ByteArray(0)
+
+    override fun getEstimatedTransactionSize(): Int = 300 // Typical Tron transaction size in bytes
+
+    override fun totalFee(): Value = zeroValue(type)
 
     /**
      * Returns true if this transaction includes an admin fee transfer.

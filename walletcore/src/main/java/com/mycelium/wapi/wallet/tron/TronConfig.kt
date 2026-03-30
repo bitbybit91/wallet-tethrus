@@ -1,7 +1,5 @@
 package com.mycelium.wapi.wallet.tron
 
-import com.mycelium.wapi.wallet.coins.CryptoCurrency
-
 /**
  * Configuration for creating a Tron account from the master seed.
  */
@@ -15,6 +13,4 @@ class TronAddressConfig(val address: TronAddress) : com.mycelium.wapi.wallet.man
 /**
  * Settings specific to the Tron network module.
  */
-class TronSettings : com.mycelium.wapi.wallet.CurrencySettings {
-    override fun getDefaultCurrency(): CryptoCurrency? = null
-}
+class TronSettings : com.mycelium.wapi.wallet.CurrencySettings
