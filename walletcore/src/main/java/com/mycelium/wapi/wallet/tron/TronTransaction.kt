@@ -32,6 +32,21 @@ class TronTransaction(
     override fun txBytes(): ByteArray = signedTransactionHex?.toByteArray() ?: ByteArray(0)
 
     /**
+     * Tron does not use byte-size-based fee estimation.
+     * Fees are paid via bandwidth and energy, tracked separately in
+     * [estimatedBandwidth] and [estimatedEnergy].
+     * Returns 300 as the default estimated bandwidth consumption for a standard TRX/TRC20 transfer.
+     */
+    override fun getEstimatedTransactionSize(): Int = 300
+
+    /**
+     * Tron transaction fees are paid via bandwidth/energy resources, not as
+     * an explicit fee field deducted from the transaction value.
+     * Returns a zero value of this transaction's cryptocurrency type.
+     */
+    override fun totalFee(): Value = Value.zeroValue(type)
+
+    /**
      * Returns true if this transaction includes an admin fee transfer.
      */
     fun hasAdminFee(): Boolean = adminFeeAmount != null && adminWalletAddress != null

@@ -3,7 +3,6 @@ package com.mycelium.wapi.wallet.tron
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonParser
-import com.google.gson.annotations.SerializedName
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -24,11 +23,12 @@ import java.util.logging.Logger
  */
 class TronGridBlockchainService(
     private val apiBaseUrl: String = "https://api.trongrid.io",
-    private val apiKey: String? = null
+    private val apiKey: String? = "4652ad08-fd86-4ac5-a890-7cefe57124d9"
 ) : TronBlockchainService {
 
     private val logger = Logger.getLogger(TronGridBlockchainService::class.java.simpleName)
     private val gson: Gson = GsonBuilder().create()
+    private val jsonParser = JsonParser()
 
     override fun getBalance(address: String): Long {
         return try {
@@ -36,7 +36,7 @@ class TronGridBlockchainService(
                 "$apiBaseUrl/wallet/getaccount",
                 """{"address":"$address","visible":true}"""
             )
-            val json = JsonParser.parseString(response).asJsonObject
+            val json = jsonParser.parse(response).asJsonObject
             json.get("balance")?.asLong ?: 0L
         } catch (e: Exception) {
             logger.log(Level.WARNING, "Failed to get TRX balance for $address", e)
@@ -50,7 +50,7 @@ class TronGridBlockchainService(
             val response = httpGet(
                 "$apiBaseUrl/v1/accounts/$address"
             )
-            val json = JsonParser.parseString(response).asJsonObject
+            val json = jsonParser.parse(response).asJsonObject
             val data = json.getAsJsonArray("data")
             if (data != null && data.size() > 0) {
                 val account = data[0].asJsonObject
@@ -78,7 +78,7 @@ class TronGridBlockchainService(
                 url += "&fingerprint=$fingerprint"
             }
             val response = httpGet(url)
-            val json = JsonParser.parseString(response).asJsonObject
+            val json = jsonParser.parse(response).asJsonObject
             val data = json.getAsJsonArray("data") ?: return emptyList()
             data.map { element ->
                 val tx = element.asJsonObject
@@ -114,7 +114,7 @@ class TronGridBlockchainService(
                 url += "&fingerprint=$fingerprint"
             }
             val response = httpGet(url)
-            val json = JsonParser.parseString(response).asJsonObject
+            val json = jsonParser.parse(response).asJsonObject
             val data = json.getAsJsonArray("data") ?: return emptyList()
             data.map { element ->
                 val tx = element.asJsonObject
@@ -144,7 +144,7 @@ class TronGridBlockchainService(
                 "$apiBaseUrl/wallet/broadcasttransaction",
                 signedTransaction
             )
-            val json = JsonParser.parseString(response).asJsonObject
+            val json = jsonParser.parse(response).asJsonObject
             val result = json.get("result")?.asBoolean ?: false
             TronBroadcastResult(
                 success = result,
@@ -163,7 +163,7 @@ class TronGridBlockchainService(
                 "$apiBaseUrl/wallet/getnowblock",
                 "{}"
             )
-            val json = JsonParser.parseString(response).asJsonObject
+            val json = jsonParser.parse(response).asJsonObject
             val blockHeader = json.getAsJsonObject("block_header")
                 ?.getAsJsonObject("raw_data")
             blockHeader?.get("number")?.asLong ?: 0L
@@ -179,7 +179,7 @@ class TronGridBlockchainService(
                 "$apiBaseUrl/wallet/getaccountresource",
                 """{"address":"$address","visible":true}"""
             )
-            val json = JsonParser.parseString(response).asJsonObject
+            val json = jsonParser.parse(response).asJsonObject
             val bandwidth = (json.get("freeNetLimit")?.asLong ?: 0L) -
                     (json.get("freeNetUsed")?.asLong ?: 0L)
             val energy = (json.get("EnergyLimit")?.asLong ?: 0L) -
@@ -212,7 +212,7 @@ class TronGridBlockchainService(
                     "visible":true
                 }"""
             )
-            val json = JsonParser.parseString(response).asJsonObject
+            val json = jsonParser.parse(response).asJsonObject
             json.get("energy_used")?.asLong ?: 65000L // Default TRC20 transfer energy
         } catch (e: Exception) {
             logger.log(Level.WARNING, "Failed to estimate energy", e)
