@@ -7,4 +7,5 @@ object TronConstants {
     const val SHASTA_TESTNET_API_URL = "https://api.shasta.trongrid.io"
     const val USDT_CONTRACT_ADDRESS = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
     const val USDT_NILE_CONTRACT_ADDRESS = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf"
+    const val TYPICAL_TRANSACTION_SIZE_BYTES = 300
 }

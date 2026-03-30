@@ -32,7 +32,7 @@ class TronTransaction(
 
     override fun txBytes(): ByteArray = signedTransactionHex?.toByteArray() ?: ByteArray(0)
 
-    override fun getEstimatedTransactionSize(): Int = 300 // Typical Tron transaction size in bytes
+    override fun getEstimatedTransactionSize(): Int = TronConstants.TYPICAL_TRANSACTION_SIZE_BYTES
 
     override fun totalFee(): Value = zeroValue(type)
 

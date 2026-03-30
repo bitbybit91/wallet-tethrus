@@ -22,8 +22,8 @@ import java.util.logging.Logger
  * @param apiKey Optional TronGrid API key for higher rate limits
  */
 class TronGridBlockchainService(
-    private val apiBaseUrl: String = "https://api.trongrid.io",
-    private val apiKey: String? = "4652ad08-fd86-4ac5-a890-7cefe57124d9"
+    private val apiBaseUrl: String = TronConstants.MAINNET_API_URL,
+    private val apiKey: String? = TronConstants.TRONGRID_API_KEY
 ) : TronBlockchainService {
 
     private val logger = Logger.getLogger(TronGridBlockchainService::class.java.simpleName)
