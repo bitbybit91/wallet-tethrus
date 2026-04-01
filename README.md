@@ -133,8 +133,8 @@ kotlin.daemon.jvmargs=-Xmx4g
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/bitbybit91/wallet-tethrus.git
-cd wallet-tethrus
+git clone https://github.com/mycelium-com/wallet-android.git
+cd wallet-android
 ```
 
 ### 2. Initialize Git Submodules
@@ -501,9 +501,9 @@ podman run --rm --interactive --tty \
     mycelium_builder \
     bash -c "apt update;
     apt install -y disorderfs;
-    mkdir /project/
+    mkdir /project/;
     disorderfs --sort-dirents=yes --reverse-dirents=no /app/ /project/;
-    cd /project/
+    cd /project/;
     ./gradlew -x lint -x test clean :mbw:assembleProdnetRelease;"
 ```
 
@@ -524,9 +524,9 @@ podman run --rm --interactive --tty \
     mycelium_builder \
     bash -c "apt update;
     apt install -y disorderfs;
-    mkdir /project/
+    mkdir /project/;
     disorderfs --sort-dirents=yes --reverse-dirents=no /app/ /project/;
-    cd /project/
+    cd /project/;
     ./gradlew -x lint -x test clean \
         :mbw:assembleBtctestnetRelease \
         :mbw:assembleProdnetRelease \
@@ -580,9 +580,18 @@ Expected output:
 Verifies
 Verified using v1 scheme (JAR signing): true
 Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): false
 Number of signers: 1
 Signer #1 certificate DN: CN=Mycelium Developers, O=Mycelium, L=Vienna, C=AT
 Signer #1 certificate SHA-256 digest: b8e59d4a60b65290efb2716319e50b94e298d7a72c76c2119eb7d8d3afac302e
+Signer #1 certificate SHA-1 digest: be575ec3b3b52e0b2392146cbdb245c91ef5a04f
+Signer #1 certificate MD5 digest: 7aec063675b0206aba3b6175b89abc7d
+Signer #1 key algorithm: RSA
+Signer #1 key size (bits): 2048
+Signer #1 public key SHA-256 digest: 6d9c0cda9dcd3ec5efcdca41243829b1dcf1e9a91c6309bca167807282590a20
+Signer #1 public key SHA-1 digest: b34336038c7ca678285c14aebe78b7d5add90e4c
+Signer #1 public key MD5 digest: a78bdb2b6d074db4b1ff12eb9cddcfa3
+WARNING: ...
 ```
 
 ---
@@ -590,7 +599,7 @@ Signer #1 certificate SHA-256 digest: b8e59d4a60b65290efb2716319e50b94e298d7a72c
 ## Project Structure
 
 ```
-wallet-tethrus/
+wallet-android/
 ├── mbw/                          Main Android application module
 ├── mbwlib/                       Core library (networking, crypto primitives)
 ├── walletcore/                   Wallet core logic (accounts, transactions, modules)
