@@ -51,8 +51,7 @@ class TronModule(
 
     override fun loadAccounts(): Map<UUID, WalletAccount<*>> = emptyMap()
 
-    override fun canCreateAccount(config: Config) =
-        config is TronMasterseedConfig || config is TronAddressConfig
+    override fun canCreateAccount(config: Config) = false
 
     override fun createAccount(config: Config): WalletAccount<*> {
         throw UnsupportedOperationException("Tron account creation requires full node connectivity")
@@ -62,12 +61,6 @@ class TronModule(
         accounts.remove(walletAccount.id)
         return true
     }
-
-    private fun getCurrentBip44Index() = accounts.values
-        .filter { it.isDerivedFromInternalMasterseed() }
-        .maxByOrNull { it.id.hashCode() }
-        ?.let { 0 }
-        ?: -1
 
     companion object {
         const val ID: String = "Tron"
