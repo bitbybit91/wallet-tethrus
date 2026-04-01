@@ -1,0 +1,15 @@
+# Release signing configuration for Tethrus wallet
+# Copy this file to keys.properties and fill in your keystore details.
+# This file is gitignored and must not be committed with real values.
+
+# Prodnet release signing
+prodKeyStore=path/to/prodnet-release.keystore
+prodKeyAlias=your-key-alias
+prodKeyStorePassword=your-store-password
+prodKeyAliasPassword=your-key-password
+
+# Testnet release signing
+testKeyStore=path/to/testnet-release.keystore
+testKeyAlias=your-test-key-alias
+testKeyStorePassword=your-test-store-password
+testKeyAliasPassword=your-test-key-password

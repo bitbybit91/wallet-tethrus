@@ -276,7 +276,7 @@ android {
 
     productFlavors {
         prodnet {
-            applicationId 'com.mycelium.wallet'
+            applicationId 'com.tethrus.wallet'
             versionName = defaultConfig.versionName
             signingConfig signingConfigs.release
 
@@ -345,11 +345,15 @@ android {
                 sepaBuyBitsOfGold = "https://www.bitsofgold.co.il/order/buy?order_id=null&page=0&provider=mycelium&utm_source=Mycelium&utm_medium=mobile_app&utm_campaign=ci"
                 sepaSellBitsOfGold = "https://www.bitsofgold.co.il/order/sell?order_id=null&page=0&provider=mycelium&utm_source=Mycelium&utm_medium=mobile_app&utm_campaign=co"
                 mediaFlowURL = "https://media.mycelium.com/wp-json/wp/v2/"
+
+                TronGridApiUrl = "https://api.trongrid.io"
+                TronScanExplorerUrl = "https://tronscan.org"
+                TronUsdtContract = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
             }
             logger.info("Signing config is ", signingConfig)
         }
         btctestnet {
-            applicationId 'com.mycelium.testnetwallet'
+            applicationId 'com.tethrus.testnetwallet'
             versionName = defaultConfig.versionName + '-TESTNET'
             signingConfig signingConfigs.btctestnet
 
@@ -382,12 +386,16 @@ android {
                 sepaBuyBitsOfGold = "https://www.bitsofgold.co.il/order/buy?order_id=null&page=0&provider=mycelium&utm_source=Mycelium&utm_medium=mobile_app&utm_campaign=ci"
                 sepaSellBitsOfGold = "https://www.bitsofgold.co.il/order/sell?order_id=null&page=0&provider=mycelium&utm_source=Mycelium&utm_medium=mobile_app&utm_campaign=co"
                 mediaFlowURL = "http://media-dev.mycelium.com/wp-json/wp/v2/"
+
+                TronGridApiUrl = "https://nile.trongrid.io"
+                TronScanExplorerUrl = "https://nile.tronscan.org"
+                TronUsdtContract = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf"
             }
             logger.info("Signing config is ", signingConfig)
         }
 
         huaweiProdnet {
-            applicationId 'com.mycelium.wallet.app'
+            applicationId 'com.tethrus.wallet.app'
             versionName = defaultConfig.versionName
             signingConfig signingConfigs.release
 
@@ -456,6 +464,10 @@ android {
                 sepaBuyBitsOfGold = "https://www.bitsofgold.co.il/order/buy?order_id=null&page=0&provider=mycelium&utm_source=Mycelium&utm_medium=mobile_app&utm_campaign=ci"
                 sepaSellBitsOfGold = "https://www.bitsofgold.co.il/order/sell?order_id=null&page=0&provider=mycelium&utm_source=Mycelium&utm_medium=mobile_app&utm_campaign=co"
                 mediaFlowURL = "https://media.mycelium.com/wp-json/wp/v2/"
+
+                TronGridApiUrl = "https://api.trongrid.io"
+                TronScanExplorerUrl = "https://tronscan.org"
+                TronUsdtContract = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
             }
             logger.info("Signing config is ", signingConfig)
         }
@@ -487,6 +499,9 @@ android {
         variant.buildConfigField "String", "SEPA_BUY_BITS_OF_GOLD", "\"${flavor.ext.sepaBuyBitsOfGold}\""
         variant.buildConfigField "String", "SEPA_SELL_BITS_OF_GOLD", "\"${flavor.ext.sepaSellBitsOfGold}\""
         variant.buildConfigField "String", "MEDIA_FLOW_URL", "\"${flavor.ext.mediaFlowURL}\""
+        variant.buildConfigField "String", "TRON_GRID_API_URL", "\"${flavor.ext.TronGridApiUrl}\""
+        variant.buildConfigField "String", "TRON_SCAN_EXPLORER_URL", "\"${flavor.ext.TronScanExplorerUrl}\""
+        variant.buildConfigField "String", "TRON_USDT_CONTRACT", "\"${flavor.ext.TronUsdtContract}\""
     }
 
     testOptions {

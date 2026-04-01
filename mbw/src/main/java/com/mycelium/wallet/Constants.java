@@ -135,4 +135,10 @@ public interface Constants {
    int BTC_BLOCK_TIME_IN_SECONDS = 600;
 
    String BAD_REQUEST_HTTP_CODE = "400";
+
+   // Tron network constants
+   int TRON_DECIMALS = 6;
+   int TRC20_DECIMALS = 6;
+   String TRON_BIP44_PATH = "m/44'/195'";
+   String TRON_ADDRESS_PREFIX = "T";
 }
