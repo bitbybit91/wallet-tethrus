@@ -1,0 +1,15 @@
+# Release signing configuration for Tethrus wallet
+# Copy this file to keys.properties and fill in your keystore details.
+# Do NOT commit keys.properties to version control.
+
+# Production release signing
+prodKeyStore=path/to/production.keystore
+prodKeyAlias=your-key-alias
+prodKeyStorePassword=your-store-password
+prodKeyAliasPassword=your-key-password
+
+# Testnet release signing
+testKeyStore=path/to/testnet.keystore
+testKeyAlias=your-test-key-alias
+testKeyStorePassword=your-test-store-password
+testKeyAliasPassword=your-test-key-password
