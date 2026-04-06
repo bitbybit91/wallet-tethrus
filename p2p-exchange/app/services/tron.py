@@ -13,7 +13,7 @@ import time
 from typing import Optional
 
 import base58
-import ecdsa
+import coincurve
 import requests
 
 logger = logging.getLogger(__name__)
@@ -103,14 +103,16 @@ class TronService:
         Returns:
             dict with 'private_key', 'public_key', and 'address'
         """
-        # Generate private key using secp256k1
-        sk = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
-        private_key_bytes = sk.to_string()
-        private_key_hex = private_key_bytes.hex()
+        # Generate private key using secp256k1 via coincurve
+        private_key = coincurve.PrivateKey()
+        private_key_hex = private_key.secret.hex()
 
-        # Derive public key (uncompressed, without 04 prefix for address)
-        vk = sk.get_verifying_key()
-        public_key_bytes = vk.to_string()
+        # Derive uncompressed public key (65 bytes: 04 || x || y)
+        # Strip the 04 prefix for address derivation
+        public_key_uncompressed = private_key.public_key.format(
+            compressed=False
+        )
+        public_key_bytes = public_key_uncompressed[1:]  # Remove 04
 
         # TRON address: Keccak-256 hash of public key, take last 20 bytes
         keccak = hashlib.sha3_256(public_key_bytes).digest()
@@ -140,11 +142,13 @@ class TronService:
         Returns:
             TRON base58check address string
         """
-        sk = ecdsa.SigningKey.from_string(
-            bytes.fromhex(private_key_hex), curve=ecdsa.SECP256k1
+        private_key = coincurve.PrivateKey(
+            bytes.fromhex(private_key_hex)
         )
-        vk = sk.get_verifying_key()
-        public_key_bytes = vk.to_string()
+        public_key_uncompressed = private_key.public_key.format(
+            compressed=False
+        )
+        public_key_bytes = public_key_uncompressed[1:]  # Remove 04
 
         keccak = hashlib.sha3_256(public_key_bytes).digest()
         address_bytes = b"\x41" + keccak[-20:]
@@ -399,18 +403,13 @@ class TronService:
         tx_id = transaction.get("txID", "")
         tx_id_bytes = bytes.fromhex(tx_id)
 
-        sk = ecdsa.SigningKey.from_string(
-            bytes.fromhex(private_key), curve=ecdsa.SECP256k1
+        sk = coincurve.PrivateKey(bytes.fromhex(private_key))
+        # Sign with recoverable signature (65 bytes: r + s + v)
+        signature = sk.sign_recoverable(
+            tx_id_bytes, hasher=None
         )
-        signature = sk.sign(
-            tx_id_bytes,
-            hashfunc=hashlib.sha256,
-            sigencode=ecdsa.util.sigencode_string,
-        )
-
-        # Add recovery id (simplified - production should compute
-        # properly)
-        signature_hex = signature.hex() + "00"
+        # coincurve returns r(32) + s(32) + recovery_id(1)
+        signature_hex = signature.hex()
 
         transaction["signature"] = [signature_hex]
         return transaction
