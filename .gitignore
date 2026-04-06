@@ -23,3 +23,12 @@ nohup.out
 /keystore_mbwTest
 /crowdin.properties
 **/ndk_locator_record.json
+
+# P2P Exchange
+__pycache__/
+*.pyc
+*.log
+*.db
+p2p-exchange/venv/
+p2p-exchange/.env
+p2p-exchange/instance/
