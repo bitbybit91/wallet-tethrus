@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+
+{% block title %}Offers{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 1.5rem;">&#128176; Trading Offers</h1>
+
+<div class="offers-controls">
+    <select id="filter-type" class="form-control" style="max-width: 150px;" onchange="Offers.load()">
+        <option value="">All Types</option>
+        <option value="buy">Buy Offers</option>
+        <option value="sell">Sell Offers</option>
+    </select>
+    <select id="filter-currency" class="form-control" style="max-width: 150px;" onchange="Offers.load()">
+        <option value="">All Currencies</option>
+        <option value="USD">USD</option>
+        <option value="EUR">EUR</option>
+        <option value="GBP">GBP</option>
+        <option value="CNY">CNY</option>
+        <option value="RUB">RUB</option>
+        <option value="NGN">NGN</option>
+        <option value="INR">INR</option>
+        <option value="BRL">BRL</option>
+    </select>
+    <input type="text" id="filter-location" class="form-control" style="max-width: 200px;"
+        placeholder="Location..." oninput="Offers.load()">
+    <div style="flex:1;"></div>
+    <button class="btn btn-primary" onclick="Offers.showCreateModal()">
+        &#10133; Create Offer
+    </button>
+</div>
+
+<div id="offers-list">
+    <div class="loading"><div class="spinner"></div><p>Loading offers...</p></div>
+</div>
+
+<div id="offers-pagination" class="pagination"></div>
+
+<!-- Create Offer Modal -->
+<div class="modal-overlay" id="create-offer-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">Create Offer</h3>
+            <button class="modal-close" onclick="Offers.closeCreateModal()">&times;</button>
+        </div>
+        <form onsubmit="return Offers.submitCreate(event)">
+            <div class="form-group">
+                <label>Offer Type</label>
+                <select id="create-type" class="form-control" required>
+                    <option value="sell">Sell USDT</option>
+                    <option value="buy">Buy USDT</option>
+                </select>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Min Amount (USDT)</label>
+                    <input type="number" id="create-min" class="form-control"
+                        step="0.01" min="1" required placeholder="10">
+                </div>
+                <div class="form-group">
+                    <label>Max Amount (USDT)</label>
+                    <input type="number" id="create-max" class="form-control"
+                        step="0.01" min="1" required placeholder="1000">
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Price per USDT</label>
+                    <input type="number" id="create-price" class="form-control"
+                        step="0.01" min="0.01" required placeholder="1.02">
+                </div>
+                <div class="form-group">
+                    <label>Currency</label>
+                    <select id="create-currency" class="form-control" required>
+                        <option value="USD">USD</option>
+                        <option value="EUR">EUR</option>
+                        <option value="GBP">GBP</option>
+                        <option value="CNY">CNY</option>
+                        <option value="RUB">RUB</option>
+                        <option value="NGN">NGN</option>
+                        <option value="INR">INR</option>
+                        <option value="BRL">BRL</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Payment Methods (comma-separated)</label>
+                <input type="text" id="create-methods" class="form-control"
+                    required placeholder="Bank Transfer, PayPal, Cash">
+            </div>
+            <div class="form-group">
+                <label>Location (optional)</label>
+                <input type="text" id="create-location" class="form-control"
+                    placeholder="City, Country">
+            </div>
+            <div class="form-group">
+                <label>Terms (optional)</label>
+                <textarea id="create-terms" class="form-control"
+                    placeholder="Your trade terms and conditions..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                Create Offer
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Trade Initiation Modal -->
+<div class="modal-overlay" id="trade-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">Initiate Trade</h3>
+            <button class="modal-close" onclick="Offers.closeTradeModal()">&times;</button>
+        </div>
+        <div id="trade-modal-content"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var Offers = {
+    currentPage: 1,
+    totalPages: 1,
+
+    load: async function(page) {
+        page = page || 1;
+        this.currentPage = page;
+
+        var params = new URLSearchParams();
+        params.set('page', page);
+        params.set('per_page', 20);
+
+        var type = document.getElementById('filter-type').value;
+        if (type) params.set('type', type);
+
+        var currency = document.getElementById('filter-currency').value;
+        if (currency) params.set('currency', currency);
+
+        var location = document.getElementById('filter-location').value;
+        if (location) params.set('location', location);
+
+        var data = await App.api('/offers?' + params.toString());
+
+        if (data.success) {
+            this.render(data.offers);
+            this.totalPages = data.pagination.pages;
+            this.renderPagination(data.pagination);
+        }
+    },
+
+    render: function(offers) {
+        var container = document.getElementById('offers-list');
+
+        if (!offers || offers.length === 0) {
+            container.innerHTML =
+                '<div class="empty-state">' +
+                '<h3>No offers found</h3>' +
+                '<p>Be the first to create an offer!</p>' +
+                '</div>';
+            return;
+        }
+
+        var html = '';
+        for (var i = 0; i < offers.length; i++) {
+            var offer = offers[i];
+            var typeClass = offer.offer_type === 'buy' ? 'buy' : 'sell';
+            var methods = Array.isArray(offer.payment_methods) ?
+                offer.payment_methods.join(', ') : offer.payment_methods;
+
+            html +=
+                '<div class="offer-card">' +
+                '<div>' +
+                '<span class="offer-type ' + typeClass + '">' +
+                    App.escapeHtml(offer.offer_type) + '</span>' +
+                '<div class="offer-user" style="margin-top: 0.5rem;">' +
+                    '<span>' + App.escapeHtml(offer.user_nickname || 'Anonymous') + '</span>' +
+                    App.getTrustBadge(offer.user_trust_score || 0) +
+                '</div>' +
+                '</div>' +
+                '<div>' +
+                '<div class="offer-price">' +
+                    App.formatNumber(offer.price_per_usdt) + ' ' +
+                    App.escapeHtml(offer.currency) + '/USDT</div>' +
+                '<div class="offer-amount">' +
+                    App.formatNumber(offer.amount_min) + ' - ' +
+                    App.formatNumber(offer.amount_max) + ' USDT</div>' +
+                '</div>' +
+                '<div style="font-size: 0.85rem; color: var(--text-secondary);">' +
+                '<div>&#128179; ' + App.escapeHtml(methods) + '</div>' +
+                (offer.location ?
+                    '<div>&#128205; ' + App.escapeHtml(offer.location) + '</div>' : '') +
+                '</div>' +
+                '<div>' +
+                '<button class="btn btn-primary btn-sm" onclick="Offers.showTradeModal(' +
+                    offer.id + ')">Trade</button>' +
+                '</div>' +
+                '</div>';
+        }
+
+        container.innerHTML = html;
+    },
+
+    renderPagination: function(pagination) {
+        var container = document.getElementById('offers-pagination');
+        if (pagination.pages <= 1) {
+            container.innerHTML = '';
+            return;
+        }
+
+        var html = '';
+        for (var i = 1; i <= pagination.pages; i++) {
+            html += '<button class="btn btn-sm' +
+                (i === pagination.page ? ' active' : '') +
+                '" onclick="Offers.load(' + i + ')">' + i + '</button>';
+        }
+        container.innerHTML = html;
+    },
+
+    showCreateModal: function() {
+        if (!App.session) {
+            App.showAlert('Please create a session first', 'warning');
+            return;
+        }
+        document.getElementById('create-offer-modal').classList.add('active');
+    },
+
+    closeCreateModal: function() {
+        document.getElementById('create-offer-modal').classList.remove('active');
+    },
+
+    submitCreate: async function(e) {
+        e.preventDefault();
+
+        var methods = document.getElementById('create-methods').value
+            .split(',').map(function(m) { return m.trim(); }).filter(Boolean);
+
+        var data = await App.api('/offers', {
+            method: 'POST',
+            body: JSON.stringify({
+                offer_type: document.getElementById('create-type').value,
+                amount_min: parseFloat(document.getElementById('create-min').value),
+                amount_max: parseFloat(document.getElementById('create-max').value),
+                price_per_usdt: parseFloat(document.getElementById('create-price').value),
+                currency: document.getElementById('create-currency').value,
+                payment_methods: methods,
+                location: document.getElementById('create-location').value,
+                terms: document.getElementById('create-terms').value,
+            }),
+        });
+
+        if (data.success) {
+            App.showAlert('Offer created successfully!', 'success');
+            this.closeCreateModal();
+            this.load();
+        } else {
+            App.showAlert('Error: ' + data.error, 'error');
+        }
+
+        return false;
+    },
+
+    showTradeModal: async function(offerId) {
+        if (!App.session) {
+            App.showAlert('Please create a session first', 'warning');
+            return;
+        }
+
+        var data = await App.api('/offers/' + offerId);
+        if (!data.success) {
+            App.showAlert('Failed to load offer', 'error');
+            return;
+        }
+
+        var offer = data.offer;
+        var content = document.getElementById('trade-modal-content');
+        content.innerHTML =
+            '<div class="card" style="border: none; padding: 0;">' +
+            '<p><strong>Type:</strong> ' + App.escapeHtml(offer.offer_type) + '</p>' +
+            '<p><strong>Price:</strong> ' + App.formatNumber(offer.price_per_usdt) +
+                ' ' + App.escapeHtml(offer.currency) + '/USDT</p>' +
+            '<p><strong>Range:</strong> ' + App.formatNumber(offer.amount_min) +
+                ' - ' + App.formatNumber(offer.amount_max) + ' USDT</p>' +
+            '</div>' +
+            '<div class="form-group">' +
+            '<label>Amount (USDT)</label>' +
+            '<input type="number" id="trade-amount" class="form-control" ' +
+                'min="' + offer.amount_min + '" max="' + offer.amount_max + '" ' +
+                'step="0.01" required placeholder="Enter amount">' +
+            '</div>' +
+            '<div class="form-group">' +
+            '<label>Your TRON Wallet Address</label>' +
+            '<input type="text" id="trade-address" class="form-control" ' +
+                'required placeholder="T...">' +
+            '</div>' +
+            '<button class="btn btn-primary" style="width: 100%;" ' +
+                'onclick="Offers.submitTrade(' + offerId + ')">Initiate Trade</button>';
+
+        document.getElementById('trade-modal').classList.add('active');
+    },
+
+    closeTradeModal: function() {
+        document.getElementById('trade-modal').classList.remove('active');
+    },
+
+    submitTrade: async function(offerId) {
+        var amount = document.getElementById('trade-amount').value;
+        var address = document.getElementById('trade-address').value;
+
+        if (!amount || !address) {
+            App.showAlert('Please fill in all fields', 'error');
+            return;
+        }
+
+        var data = await App.api('/trades', {
+            method: 'POST',
+            body: JSON.stringify({
+                offer_id: offerId,
+                amount_usdt: parseFloat(amount),
+                buyer_address: address,
+            }),
+        });
+
+        if (data.success) {
+            App.showAlert('Trade initiated!', 'success');
+            this.closeTradeModal();
+            window.location.href = '/trade/' + data.trade.id;
+        } else {
+            App.showAlert('Error: ' + data.error, 'error');
+        }
+    }
+};
+
+// Trades management
+var Trades = {
+    showMyTrades: async function() {
+        if (!App.session) {
+            App.showAlert('Please create a session first', 'warning');
+            return;
+        }
+
+        var data = await App.api('/trades/my');
+        if (!data.success) {
+            App.showAlert('Failed to load trades', 'error');
+            return;
+        }
+
+        var container = document.getElementById('offers-list');
+        if (!data.trades || data.trades.length === 0) {
+            container.innerHTML =
+                '<div class="empty-state">' +
+                '<h3>No trades yet</h3>' +
+                '<p>Start by accepting an offer!</p>' +
+                '</div>';
+            return;
+        }
+
+        var html = '<h2 style="margin-bottom: 1rem;">My Trades</h2>';
+        for (var i = 0; i < data.trades.length; i++) {
+            var trade = data.trades[i];
+            html +=
+                '<div class="offer-card" onclick="location.href=\'/trade/' + trade.id + '\'" style="cursor:pointer;">' +
+                '<div>Trade #' + trade.id + '</div>' +
+                '<div>' + App.formatNumber(trade.amount_usdt) + ' USDT</div>' +
+                '<div>' + App.escapeHtml(trade.status) + '</div>' +
+                '<div>' + App.formatDate(trade.created_at) + '</div>' +
+                '</div>';
+        }
+        container.innerHTML = html;
+        document.getElementById('offers-pagination').innerHTML = '';
+    }
+};
+
+// Load offers on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Check URL params for initial filter
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('type')) {
+        document.getElementById('filter-type').value = params.get('type');
+    }
+    Offers.load();
+});
+</script>
+{% endblock %}

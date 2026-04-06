@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: p2p-exchange
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-change-me-to-a-random-64-char-hex-string}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///p2p_exchange.db}
+      - TRONGRID_API_URL=${TRONGRID_API_URL:-https://api.trongrid.io}
+      - TRONGRID_API_KEY=${TRONGRID_API_KEY:-}
+      - USDT_CONTRACT_ADDRESS=${USDT_CONTRACT_ADDRESS:-TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t}
+      - ESCROW_TIMEOUT_HOURS=${ESCROW_TIMEOUT_HOURS:-24}
+      - TOR_ENABLED=${TOR_ENABLED:-false}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - app-data:/app/instance
+    networks:
+      - exchange-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # PostgreSQL (production database)
+  db:
+    image: postgres:16-alpine
+    container_name: p2p-exchange-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=p2p_exchange
+      - POSTGRES_USER=${DB_USER:-p2puser}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-changeme}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - exchange-net
+    ports:
+      - "5432:5432"
+
+  # Tor hidden service (optional)
+  tor:
+    image: goldy/tor-hidden-service:latest
+    container_name: p2p-exchange-tor
+    restart: unless-stopped
+    environment:
+      - SERVICE1_TOR_SERVICE_HOSTS=80:app:5000
+      - SERVICE1_TOR_SERVICE_VERSION=3
+    volumes:
+      - tor-data:/var/lib/tor/hidden_service
+    depends_on:
+      - app
+    networks:
+      - exchange-net
+
+volumes:
+  app-data:
+  db-data:
+  tor-data:
+
+networks:
+  exchange-net:
+    driver: bridge

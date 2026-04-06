@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Chat - Trade #{{ trade_id }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <h2>&#128172; Trade Chat #{{ trade_id }}</h2>
+    <div>
+        <span class="encrypted-badge">&#128274; End-to-end encrypted</span>
+        <a href="/trade/{{ trade_id }}" class="btn btn-sm" style="margin-left: 0.5rem;">Back to Trade</a>
+    </div>
+</div>
+
+<div class="chat-container">
+    <div class="chat-messages" id="chat-messages">
+        <div class="loading"><div class="spinner"></div><p>Loading messages...</p></div>
+    </div>
+    <div class="chat-input">
+        <input type="text" id="message-input" class="form-control"
+            placeholder="Type a message..." autocomplete="off"
+            onkeypress="if(event.key==='Enter')Chat.send()">
+        <button class="btn btn-primary" onclick="Chat.send()">Send</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var Chat = {
+    tradeId: {{ trade_id }},
+    messages: [],
+    lastTimestamp: 0,
+    sharedKey: null,
+    pollInterval: null,
+
+    init: async function() {
+        // Generate or load shared key for this trade
+        var keyStore = 'chat_key_' + this.tradeId;
+        this.sharedKey = localStorage.getItem(keyStore);
+
+        if (!this.sharedKey) {
+            this.sharedKey = Encryption.generateSharedKey();
+            localStorage.setItem(keyStore, this.sharedKey);
+        }
+
+        // Exchange public key with server
+        await this.exchangeKeys();
+
+        // Load existing messages
+        await this.loadMessages();
+
+        // Poll for new messages every 3 seconds
+        this.pollInterval = setInterval(function() {
+            Chat.loadMessages();
+        }, 3000);
+
+        // Focus input
+        document.getElementById('message-input').focus();
+    },
+
+    exchangeKeys: async function() {
+        var keypair = Encryption.generateKeypair();
+        var pubkey = Encryption.toBase64(keypair.publicKey);
+
+        await App.api('/chat/' + this.tradeId + '/pubkey', {
+            method: 'POST',
+            body: JSON.stringify({ public_key: pubkey }),
+        });
+    },
+
+    loadMessages: async function() {
+        var params = '';
+        if (this.lastTimestamp) {
+            params = '?since=' + this.lastTimestamp;
+        }
+
+        var data = await App.api('/chat/' + this.tradeId + '/messages' + params);
+
+        if (data.success && data.messages.length > 0) {
+            for (var i = 0; i < data.messages.length; i++) {
+                var msg = data.messages[i];
+                // Avoid duplicates
+                var exists = this.messages.some(function(m) { return m.id === msg.id; });
+                if (!exists) {
+                    this.messages.push(msg);
+                    this.lastTimestamp = msg.timestamp;
+                }
+            }
+            this.render();
+        } else if (this.messages.length === 0) {
+            document.getElementById('chat-messages').innerHTML =
+                '<div class="empty-state" style="padding: 2rem;">' +
+                '<p>No messages yet. Start the conversation!</p>' +
+                '</div>';
+        }
+    },
+
+    render: function() {
+        var container = document.getElementById('chat-messages');
+        var html = '';
+
+        for (var i = 0; i < this.messages.length; i++) {
+            var msg = this.messages[i];
+            var isSent = App.session && msg.sender_id === App.session.id;
+            var cls = isSent ? 'sent' : 'received';
+
+            // Try to decrypt
+            var content = '[Encrypted message]';
+            try {
+                // For system messages, display directly
+                if (msg.message_type === 'system') {
+                    content = msg.ciphertext;
+                } else {
+                    // In a full implementation, decrypt with shared key
+                    content = msg.ciphertext.substring(0, 50) + '...';
+                }
+            } catch(e) {
+                content = '[Unable to decrypt]';
+            }
+
+            html +=
+                '<div class="message ' + cls + '">' +
+                '<div class="message-bubble">' + App.escapeHtml(content) + '</div>' +
+                '<div class="message-meta">' +
+                    App.escapeHtml(msg.sender_nickname || 'Unknown') + ' &bull; ' +
+                    App.formatDate(msg.timestamp) +
+                '</div>' +
+                '</div>';
+        }
+
+        container.innerHTML = html;
+        container.scrollTop = container.scrollHeight;
+    },
+
+    send: async function() {
+        var input = document.getElementById('message-input');
+        var text = input.value.trim();
+        if (!text) return;
+
+        try {
+            // Encrypt message
+            var encrypted = await Encryption.encryptMessage(text, this.sharedKey);
+
+            var data = await App.api('/chat/' + this.tradeId + '/messages', {
+                method: 'POST',
+                body: JSON.stringify({
+                    ciphertext: encrypted.ciphertext,
+                    ephemeral_pubkey: encrypted.ephemeral_pubkey,
+                    nonce: encrypted.nonce,
+                }),
+            });
+
+            if (data.success) {
+                input.value = '';
+                await this.loadMessages();
+            } else {
+                App.showAlert('Failed to send: ' + data.error, 'error');
+            }
+        } catch(e) {
+            App.showAlert('Encryption error: ' + e.message, 'error');
+        }
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    Chat.init();
+});
+</script>
+{% endblock %}

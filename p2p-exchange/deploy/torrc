@@ -1,0 +1,73 @@
+# Tor Hidden Service Configuration for P2P Exchange
+#
+# This file configures Tor to expose the P2P Exchange application
+# as a hidden service (.onion) on port 80.
+#
+# Installation:
+#   1. Install Tor: sudo apt-get install tor
+#   2. Copy this file or append its contents to /etc/tor/torrc
+#   3. Restart Tor: sudo systemctl restart tor
+#   4. Find your .onion address: sudo cat /var/lib/tor/p2p-exchange/hostname
+#
+# The .onion address is automatically generated on first start.
+
+# ============================================================
+# Tor Hidden Service Configuration
+# ============================================================
+
+# Hidden service directory (Tor stores keys and hostname here)
+HiddenServiceDir /var/lib/tor/p2p-exchange/
+
+# Map port 80 (Tor-facing) to port 5000 (local application)
+HiddenServicePort 80 127.0.0.1:5000
+
+# OR if using Apache as reverse proxy on port 80:
+# HiddenServicePort 80 127.0.0.1:80
+
+# ============================================================
+# Security Settings
+# ============================================================
+
+# Use v3 onion addresses (default in modern Tor)
+HiddenServiceVersion 3
+
+# Only accept connections from localhost
+SocksPort 0
+
+# Disable exit node functionality (we're a hidden service only)
+ExitPolicy reject *:*
+
+# ============================================================
+# Performance Tuning
+# ============================================================
+
+# Number of introduction points (default: 3, max: 20)
+# More = better availability but more resource usage
+HiddenServiceNumIntroductionPoints 6
+
+# ============================================================
+# Logging
+# ============================================================
+
+Log notice file /var/log/tor/notices.log
+
+# ============================================================
+# Managing the .onion Address
+# ============================================================
+#
+# After starting Tor with this config:
+#
+# 1. View your .onion address:
+#    sudo cat /var/lib/tor/p2p-exchange/hostname
+#
+# 2. Back up your hidden service keys:
+#    sudo cp -r /var/lib/tor/p2p-exchange/ /secure/backup/
+#
+# 3. To restore on a new server:
+#    sudo cp -r /secure/backup/p2p-exchange/ /var/lib/tor/
+#    sudo chown -R debian-tor:debian-tor /var/lib/tor/p2p-exchange/
+#    sudo chmod 700 /var/lib/tor/p2p-exchange/
+#
+# IMPORTANT: Protect your hidden service private key!
+# Anyone with access to hs_ed25519_secret_key can impersonate
+# your .onion address.

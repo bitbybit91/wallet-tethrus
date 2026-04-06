@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <h1>&#9878; P2P USDT Exchange</h1>
+    <p>Trade USDT-TRC20 peer-to-peer. No registration, no KYC, non-custodial escrow. Works over Tor.</p>
+    <div class="hero-actions">
+        <a href="/offers?type=sell" class="btn btn-primary">&#128176; Buy USDT</a>
+        <a href="/offers?type=buy" class="btn">&#128178; Sell USDT</a>
+        <button class="btn" onclick="showIdentityModal()">&#128273; Restore Identity</button>
+    </div>
+</section>
+
+<section class="features">
+    <div class="feature-card">
+        <div class="feature-icon">&#128274;</div>
+        <h3>No KYC Required</h3>
+        <p>Trade anonymously with session-based pseudonymous identities. No email, phone, or ID needed.</p>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon">&#9889;</div>
+        <h3>Non-Custodial Escrow</h3>
+        <p>Funds are locked on-chain in escrow. The platform never holds your private keys or funds.</p>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon">&#128172;</div>
+        <h3>E2E Encrypted Chat</h3>
+        <p>Trade communications are encrypted end-to-end. The server only stores ciphertext.</p>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon">&#127760;</div>
+        <h3>Tor-Friendly</h3>
+        <p>No external CDNs, no analytics, no tracking. Fully functional as a Tor hidden service.</p>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon">&#11088;</div>
+        <h3>Reputation System</h3>
+        <p>Build trust through successful trades. View trader ratings, completion rates, and history.</p>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon">&#128737;</div>
+        <h3>Dispute Resolution</h3>
+        <p>Fair arbitration system for disputed trades. Encrypted evidence review by arbitrators.</p>
+    </div>
+</section>
+
+<section class="card">
+    <div class="card-header">
+        <h2 class="card-title">How It Works</h2>
+    </div>
+    <div class="grid-2">
+        <div>
+            <h3>For Buyers</h3>
+            <ol style="padding-left: 1.5rem; color: var(--text-secondary); line-height: 2;">
+                <li>Browse sell offers or create a buy offer</li>
+                <li>Initiate a trade with a seller</li>
+                <li>Wait for seller to fund escrow on-chain</li>
+                <li>Send fiat payment to seller</li>
+                <li>Seller confirms receipt &amp; escrow releases USDT</li>
+            </ol>
+        </div>
+        <div>
+            <h3>For Sellers</h3>
+            <ol style="padding-left: 1.5rem; color: var(--text-secondary); line-height: 2;">
+                <li>Create a sell offer with your terms</li>
+                <li>Wait for a buyer to initiate a trade</li>
+                <li>Fund the escrow address with USDT-TRC20</li>
+                <li>Wait for buyer's fiat payment</li>
+                <li>Confirm fiat received to release escrow</li>
+            </ol>
+        </div>
+    </div>
+</section>
+
+<!-- Identity Modal -->
+<div class="modal-overlay" id="identity-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">&#128273; Identity Management</h3>
+            <button class="modal-close" onclick="closeIdentityModal()">&times;</button>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('generate')">Generate New</button>
+            <button class="tab" onclick="switchTab('restore')">Restore</button>
+        </div>
+
+        <div class="tab-content active" id="tab-generate">
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                Generate a 12-word mnemonic phrase for a persistent identity.
+                Save it securely &mdash; it cannot be recovered.
+            </p>
+            <div id="mnemonic-display" class="mnemonic-display" style="display:none;"></div>
+            <div class="alert alert-warning" id="mnemonic-warning" style="display:none;">
+                &#9888; Write down these words and store them safely. This is the only way to recover your identity.
+            </div>
+            <button class="btn btn-primary" onclick="generateNewMnemonic()" style="margin-top: 1rem;">
+                Generate Mnemonic
+            </button>
+        </div>
+
+        <div class="tab-content" id="tab-restore">
+            <div class="form-group">
+                <label for="restore-mnemonic">Enter your 12-word mnemonic phrase:</label>
+                <textarea id="restore-mnemonic" class="form-control"
+                    placeholder="word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12"
+                    rows="3"></textarea>
+            </div>
+            <button class="btn btn-primary" onclick="restoreIdentity()">
+                Restore Identity
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showIdentityModal() {
+    document.getElementById('identity-modal').classList.add('active');
+}
+
+function closeIdentityModal() {
+    document.getElementById('identity-modal').classList.remove('active');
+}
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+
+    if (tab === 'generate') {
+        document.querySelector('.tabs .tab:first-child').classList.add('active');
+        document.getElementById('tab-generate').classList.add('active');
+    } else {
+        document.querySelector('.tabs .tab:last-child').classList.add('active');
+        document.getElementById('tab-restore').classList.add('active');
+    }
+}
+
+async function generateNewMnemonic() {
+    var result = await App.generateMnemonic();
+    if (result) {
+        var display = document.getElementById('mnemonic-display');
+        display.textContent = result.mnemonic;
+        display.style.display = 'block';
+        document.getElementById('mnemonic-warning').style.display = 'block';
+    }
+}
+
+async function restoreIdentity() {
+    var mnemonic = document.getElementById('restore-mnemonic').value.trim();
+    if (!mnemonic) {
+        App.showAlert('Please enter your mnemonic phrase', 'error');
+        return;
+    }
+    await App.restoreFromMnemonic(mnemonic);
+    closeIdentityModal();
+}
+</script>
+{% endblock %}

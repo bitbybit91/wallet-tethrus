@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}Trade #{{ trade_id }}{% endblock %}
+
+{% block content %}
+<div id="trade-container">
+    <div class="loading"><div class="spinner"></div><p>Loading trade...</p></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var tradeId = {{ trade_id }};
+var tradeData = null;
+var pollInterval = null;
+
+async function loadTrade() {
+    var data = await App.api('/trades/' + tradeId);
+
+    if (!data.success) {
+        document.getElementById('trade-container').innerHTML =
+            '<div class="alert alert-error">' + App.escapeHtml(data.error) + '</div>';
+        return;
+    }
+
+    tradeData = data.trade;
+    renderTrade();
+}
+
+function renderTrade() {
+    var trade = tradeData;
+    var isBuyer = App.session && App.session.id === trade.buyer_id;
+    var isSeller = App.session && App.session.id === trade.seller_id;
+
+    var statusSteps = ['initiated', 'escrow_pending', 'escrow_funded', 'fiat_sent', 'fiat_confirmed', 'completed'];
+    var currentIndex = statusSteps.indexOf(trade.status);
+
+    var statusHtml = '<div class="trade-status">';
+    for (var i = 0; i < statusSteps.length; i++) {
+        var cls = '';
+        if (i < currentIndex) cls = 'completed';
+        else if (i === currentIndex) cls = 'active';
+        statusHtml += '<div class="status-step ' + cls + '">' +
+            App.escapeHtml(statusSteps[i].replace(/_/g, ' ')) + '</div>';
+    }
+    statusHtml += '</div>';
+
+    if (trade.status === 'disputed') {
+        statusHtml = '<div class="alert alert-error">&#9888; This trade is under dispute</div>';
+    } else if (trade.status === 'cancelled') {
+        statusHtml = '<div class="alert alert-warning">This trade has been cancelled</div>';
+    } else if (trade.status === 'expired') {
+        statusHtml = '<div class="alert alert-warning">This trade has expired</div>';
+    }
+
+    var html =
+        '<h1>Trade #' + trade.id + '</h1>' +
+        statusHtml +
+        '<div class="grid-2">' +
+        '<div class="card">' +
+        '<div class="card-header"><h3 class="card-title">Trade Details</h3></div>' +
+        '<table>' +
+        '<tr><td>Amount</td><td><strong>' + App.formatNumber(trade.amount_usdt, 6) + ' USDT</strong></td></tr>' +
+        '<tr><td>Price</td><td>' + App.formatNumber(trade.price_per_usdt) + ' ' + App.escapeHtml(trade.currency) + '/USDT</td></tr>' +
+        '<tr><td>Total Fiat</td><td><strong>' + App.formatNumber(trade.total_fiat) + ' ' + App.escapeHtml(trade.currency) + '</strong></td></tr>' +
+        '<tr><td>Buyer</td><td>' + App.escapeHtml(trade.buyer_nickname || 'N/A') + '</td></tr>' +
+        '<tr><td>Seller</td><td>' + App.escapeHtml(trade.seller_nickname || 'N/A') + '</td></tr>' +
+        '<tr><td>Created</td><td>' + App.formatDate(trade.created_at) + '</td></tr>' +
+        '</table>' +
+        '</div>' +
+
+        '<div class="card">' +
+        '<div class="card-header"><h3 class="card-title">Escrow Information</h3></div>' +
+        '<div class="form-group">' +
+        '<label>Escrow Address</label>' +
+        '<div class="wallet-info">' + App.escapeHtml(trade.escrow_address || 'Pending...') + '</div>' +
+        '</div>' +
+        '<div class="form-group">' +
+        '<label>Buyer Address</label>' +
+        '<div class="wallet-info">' + App.escapeHtml(trade.buyer_address || 'N/A') + '</div>' +
+        '</div>' +
+        (trade.escrow_tx_id ?
+            '<div class="form-group">' +
+            '<label>Escrow TX</label>' +
+            '<div class="wallet-info">' + App.escapeHtml(trade.escrow_tx_id) + '</div>' +
+            '</div>' : '') +
+        '</div>' +
+        '</div>';
+
+    // Action buttons based on status and role
+    html += '<div class="card"><div class="card-header"><h3 class="card-title">Actions</h3></div>';
+
+    if (trade.status === 'escrow_pending' && isSeller) {
+        html += '<p style="margin-bottom: 1rem; color: var(--text-secondary);">Send ' +
+            App.formatNumber(trade.amount_usdt, 6) + ' USDT-TRC20 to the escrow address above.</p>' +
+            '<div class="form-group">' +
+            '<label>Transaction ID (after sending)</label>' +
+            '<input type="text" id="escrow-tx-id" class="form-control" placeholder="Transaction hash...">' +
+            '</div>' +
+            '<button class="btn btn-primary" onclick="verifyEscrow()">Verify Escrow Funding</button> ';
+    }
+
+    if (trade.status === 'escrow_pending') {
+        html += '<button class="btn" onclick="checkEscrowBalance()">Check Escrow Balance</button> ';
+    }
+
+    if (trade.status === 'escrow_funded' && isBuyer) {
+        html += '<p style="margin-bottom: 1rem; color: var(--text-secondary);">Escrow is funded. Send fiat payment to the seller, then confirm below.</p>' +
+            '<button class="btn btn-primary" onclick="confirmFiatSent()">I\'ve Sent Fiat Payment</button> ';
+    }
+
+    if (trade.status === 'fiat_sent' && isSeller) {
+        html += '<p style="margin-bottom: 1rem; color: var(--text-secondary);">Buyer claims fiat payment was sent. Verify receipt, then confirm.</p>' +
+            '<button class="btn btn-primary" onclick="confirmFiatReceived()">I\'ve Received Fiat Payment</button> ';
+    }
+
+    if (trade.status === 'fiat_confirmed' && isSeller) {
+        html += '<button class="btn btn-primary" onclick="releaseEscrow()">Release Escrow to Buyer</button> ';
+    }
+
+    if (['escrow_pending', 'initiated'].indexOf(trade.status) !== -1) {
+        html += '<button class="btn btn-danger" onclick="cancelTrade()">Cancel Trade</button> ';
+    }
+
+    if (['escrow_funded', 'fiat_sent', 'fiat_confirmed'].indexOf(trade.status) !== -1) {
+        html += '<button class="btn btn-danger" onclick="openDispute()">Open Dispute</button> ';
+    }
+
+    html += '<a href="/chat/' + trade.id + '" class="btn">&#128172; Open Chat</a>';
+    html += '</div>';
+
+    document.getElementById('trade-container').innerHTML = html;
+}
+
+async function verifyEscrow() {
+    var txId = document.getElementById('escrow-tx-id').value.trim();
+    var body = txId ? { tx_id: txId } : {};
+
+    var data = await App.api('/trades/' + tradeId + '/escrow/verify', {
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+
+    if (data.funded || data.verified) {
+        App.showAlert('Escrow verified successfully!', 'success');
+        loadTrade();
+    } else {
+        App.showAlert('Escrow not yet confirmed. ' + JSON.stringify(data), 'warning');
+    }
+}
+
+async function checkEscrowBalance() {
+    var data = await App.api('/trades/' + tradeId + '/escrow/verify', {
+        method: 'POST',
+        body: JSON.stringify({}),
+    });
+
+    if (data.funded) {
+        App.showAlert('Escrow is funded: ' + data.balance + ' USDT', 'success');
+        loadTrade();
+    } else {
+        App.showAlert('Escrow balance: ' + (data.balance || 0) + ' / ' + (data.required || 0) + ' USDT', 'info');
+    }
+}
+
+async function confirmFiatSent() {
+    if (!confirm('Confirm that you have sent the fiat payment?')) return;
+
+    var data = await App.api('/trades/' + tradeId + '/fiat-sent', { method: 'POST' });
+    if (data.success) {
+        App.showAlert('Fiat payment confirmed as sent', 'success');
+        loadTrade();
+    } else {
+        App.showAlert('Error: ' + data.error, 'error');
+    }
+}
+
+async function confirmFiatReceived() {
+    if (!confirm('Confirm that you have received the fiat payment?')) return;
+
+    var data = await App.api('/trades/' + tradeId + '/fiat-received', { method: 'POST' });
+    if (data.success) {
+        App.showAlert('Fiat payment confirmed as received', 'success');
+        loadTrade();
+    } else {
+        App.showAlert('Error: ' + data.error, 'error');
+    }
+}
+
+async function releaseEscrow() {
+    if (!confirm('Release escrow funds to the buyer? This cannot be undone.')) return;
+
+    var data = await App.api('/trades/' + tradeId + '/release', { method: 'POST' });
+    if (data.success) {
+        App.showAlert('Escrow released! Trade completed.', 'success');
+        loadTrade();
+    } else {
+        App.showAlert('Error: ' + (data.error || 'Release failed'), 'error');
+    }
+}
+
+async function cancelTrade() {
+    if (!confirm('Are you sure you want to cancel this trade?')) return;
+
+    var data = await App.api('/trades/' + tradeId + '/cancel', { method: 'POST' });
+    if (data.success) {
+        App.showAlert('Trade cancelled', 'success');
+        loadTrade();
+    } else {
+        App.showAlert('Error: ' + data.error, 'error');
+    }
+}
+
+async function openDispute() {
+    var reason = prompt('Describe the reason for the dispute:');
+    if (!reason) return;
+
+    var data = await App.api('/trades/' + tradeId + '/dispute', {
+        method: 'POST',
+        body: JSON.stringify({ reason: reason }),
+    });
+
+    if (data.success) {
+        App.showAlert('Dispute opened. An arbitrator will review.', 'warning');
+        loadTrade();
+    } else {
+        App.showAlert('Error: ' + data.error, 'error');
+    }
+}
+
+// Auto-refresh trade status every 15 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    loadTrade();
+    pollInterval = setInterval(loadTrade, 15000);
+});
+</script>
+{% endblock %}
