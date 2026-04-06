@@ -49,6 +49,13 @@ class SettingsLanguageChanged extends SettingsEvent {
   List<Object?> get props => [language];
 }
 
+class SettingsProxyChanged extends SettingsEvent {
+  final String? address;
+  const SettingsProxyChanged({this.address});
+  @override
+  List<Object?> get props => [address];
+}
+
 // State
 class SettingsState extends Equatable {
   final ThemeMode themeMode;
@@ -108,6 +115,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<SettingsAutoLockChanged>(_onAutoLockChanged);
     on<SettingsNotificationsChanged>(_onNotificationsChanged);
     on<SettingsLanguageChanged>(_onLanguageChanged);
+    on<SettingsProxyChanged>(_onProxyChanged);
   }
 
   Future<void> _onLoadRequested(
@@ -175,5 +183,13 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   ) async {
     await settingsRepository.setLanguage(event.language);
     emit(state.copyWith(language: event.language));
+  }
+
+  Future<void> _onProxyChanged(
+    SettingsProxyChanged event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await settingsRepository.setProxyAddress(event.address);
+    emit(state.copyWith(proxyAddress: event.address));
   }
 }

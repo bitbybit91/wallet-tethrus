@@ -361,6 +361,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () {
+              final value = controller.text.trim();
+              context.read<SettingsBloc>().add(
+                SettingsProxyChanged(
+                  address: value.isEmpty ? null : value,
+                ),
+              );
               Navigator.pop(ctx);
             },
             child: Text(
