@@ -85,13 +85,6 @@ def create_app(config_name=None):
     csrf.init_app(app)
     limiter.init_app(app)
 
-    # Exempt API routes from CSRF (they use token auth)
-    csrf.exempt("app.routes.auth.auth_bp")
-    csrf.exempt("app.routes.offers.offers_bp")
-    csrf.exempt("app.routes.trades.trades_bp")
-    csrf.exempt("app.routes.chat.chat_bp")
-    csrf.exempt("app.routes.wallet.wallet_bp")
-
     # Initialize services
     from app.services.escrow import EscrowService
     from app.services.notifications import NotificationService
@@ -113,6 +106,13 @@ def create_app(config_name=None):
     app.register_blueprint(trades_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(wallet_bp)
+
+    # Exempt API blueprints from CSRF (they use token auth)
+    csrf.exempt(auth_bp)
+    csrf.exempt(offers_bp)
+    csrf.exempt(trades_bp)
+    csrf.exempt(chat_bp)
+    csrf.exempt(wallet_bp)
 
     # Security headers middleware
     @app.after_request

@@ -39,9 +39,12 @@ def db(app):
 
 
 @pytest.fixture
-def session_token(client):
+def session_token(client, db):
     """Create a user session and return the token."""
-    resp = client.post("/api/auth/session")
+    resp = client.post(
+        "/api/auth/session",
+        content_type="application/json",
+    )
     data = resp.get_json()
     return data["user"]["session_token"]
 
@@ -53,9 +56,12 @@ def auth_headers(session_token):
 
 
 @pytest.fixture
-def second_session_token(client):
+def second_session_token(client, db):
     """Create a second user session for multi-party tests."""
-    resp = client.post("/api/auth/session")
+    resp = client.post(
+        "/api/auth/session",
+        content_type="application/json",
+    )
     data = resp.get_json()
     return data["user"]["session_token"]
 

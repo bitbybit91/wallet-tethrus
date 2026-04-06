@@ -34,10 +34,11 @@ def get_messages(user, trade_id):
     Returns:
         JSON with list of encrypted messages
     """
+    from app.main import db
     from app.models.message import Message
     from app.models.trade import Trade
 
-    trade = Trade.query.get(trade_id)
+    trade = db.session.get(Trade, trade_id)
     if not trade:
         return jsonify({
             "success": False,
@@ -97,7 +98,7 @@ def send_message(user, trade_id):
     from app.models.message import Message
     from app.models.trade import Trade
 
-    trade = Trade.query.get(trade_id)
+    trade = db.session.get(Trade, trade_id)
     if not trade:
         return jsonify({
             "success": False,
@@ -187,7 +188,7 @@ def set_chat_pubkey(user, trade_id):
     from app.main import db
     from app.models.trade import Trade
 
-    trade = Trade.query.get(trade_id)
+    trade = db.session.get(Trade, trade_id)
     if not trade:
         return jsonify({
             "success": False,

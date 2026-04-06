@@ -48,7 +48,7 @@ def initiate_trade(user):
                 "error": f"{field} is required",
             }), 400
 
-    offer = Offer.query.get(data["offer_id"])
+    offer = db.session.get(Offer, data["offer_id"])
     if not offer:
         return jsonify({
             "success": False,
@@ -138,9 +138,10 @@ def get_trade(user, trade_id):
     Returns:
         JSON with trade details
     """
+    from app.main import db
     from app.models.trade import Trade
 
-    trade = Trade.query.get(trade_id)
+    trade = db.session.get(Trade, trade_id)
     if not trade:
         return jsonify({
             "success": False,
@@ -178,10 +179,10 @@ def verify_escrow(user, trade_id):
     Returns:
         JSON with escrow verification status
     """
-    from app.main import escrow_service
+    from app.main import db, escrow_service
     from app.models.trade import Trade
 
-    trade = Trade.query.get(trade_id)
+    trade = db.session.get(Trade, trade_id)
     if not trade:
         return jsonify({
             "success": False,
@@ -223,7 +224,7 @@ def confirm_fiat_sent(user, trade_id):
     from app.main import db, notification_service
     from app.models.trade import Trade
 
-    trade = Trade.query.get(trade_id)
+    trade = db.session.get(Trade, trade_id)
     if not trade:
         return jsonify({
             "success": False,
@@ -277,7 +278,7 @@ def confirm_fiat_received(user, trade_id):
     from app.main import db, notification_service
     from app.models.trade import Trade
 
-    trade = Trade.query.get(trade_id)
+    trade = db.session.get(Trade, trade_id)
     if not trade:
         return jsonify({
             "success": False,
@@ -337,7 +338,7 @@ def release_escrow(user, trade_id):
     from app.models.trade import Trade
     from app.services.reputation import ReputationService
 
-    trade = Trade.query.get(trade_id)
+    trade = db.session.get(Trade, trade_id)
     if not trade:
         return jsonify({
             "success": False,
@@ -389,10 +390,10 @@ def open_dispute(user, trade_id):
     Returns:
         JSON with dispute details
     """
-    from app.main import escrow_service, notification_service
+    from app.main import db, escrow_service, notification_service
     from app.models.trade import Trade
 
-    trade = Trade.query.get(trade_id)
+    trade = db.session.get(Trade, trade_id)
     if not trade:
         return jsonify({
             "success": False,
@@ -441,7 +442,7 @@ def resolve_dispute(user, trade_id):
     Returns:
         JSON with resolution details
     """
-    from app.main import escrow_service, notification_service
+    from app.main import db, escrow_service, notification_service
     from app.models.trade import Trade
     from app.services.reputation import ReputationService
 
@@ -451,7 +452,7 @@ def resolve_dispute(user, trade_id):
             "error": "Only arbitrators can resolve disputes",
         }), 403
 
-    trade = Trade.query.get(trade_id)
+    trade = db.session.get(Trade, trade_id)
     if not trade:
         return jsonify({
             "success": False,
@@ -491,8 +492,8 @@ def resolve_dispute(user, trade_id):
 
         from app.models.user import User
 
-        winner = User.query.get(winner_id)
-        loser = User.query.get(loser_id)
+        winner = db.session.get(User, winner_id)
+        loser = db.session.get(User, loser_id)
         if winner:
             ReputationService.update_after_trade(
                 winner, trade, True
@@ -525,7 +526,7 @@ def cancel_trade(user, trade_id):
     from app.main import db, notification_service
     from app.models.trade import Trade
 
-    trade = Trade.query.get(trade_id)
+    trade = db.session.get(Trade, trade_id)
     if not trade:
         return jsonify({
             "success": False,

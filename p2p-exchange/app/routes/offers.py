@@ -221,9 +221,10 @@ def get_offer(offer_id):
     Returns:
         JSON with offer details
     """
+    from app.main import db
     from app.models.offer import Offer
 
-    offer = Offer.query.get(offer_id)
+    offer = db.session.get(Offer, offer_id)
     if not offer:
         return jsonify({
             "success": False,
@@ -252,7 +253,7 @@ def update_offer(user, offer_id):
     from app.main import db
     from app.models.offer import Offer
 
-    offer = Offer.query.get(offer_id)
+    offer = db.session.get(Offer, offer_id)
     if not offer:
         return jsonify({
             "success": False,
@@ -318,7 +319,7 @@ def delete_offer(user, offer_id):
     from app.main import db
     from app.models.offer import Offer
 
-    offer = Offer.query.get(offer_id)
+    offer = db.session.get(Offer, offer_id)
     if not offer:
         return jsonify({
             "success": False,
