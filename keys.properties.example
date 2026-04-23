@@ -1,0 +1,8 @@
+prodKeyStore=C:\\path\\to\\keystore_mbwProd
+prodKeyAlias=mycelium_prod
+prodKeyStorePassword=CHANGE_ME
+prodKeyAliasPassword=CHANGE_ME
+testKeyStore=C:\\path\\to\\keystore_mbwTest
+testKeyAlias=mycelium_test
+testKeyStorePassword=CHANGE_ME
+testKeyAliasPassword=CHANGE_ME
