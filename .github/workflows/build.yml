@@ -1,0 +1,21 @@
+name: Tethrus Build
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - run: chmod +x gradlew
+      - run: ./gradlew clean test mbw:assembleProdnetRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tethrus-apks
+          path: mbw/build/outputs/apk/
