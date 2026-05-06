@@ -1,0 +1,33 @@
+# key.properties.template
+#
+# This file documents the Gradle signing properties consumed by mbw/build.gradle
+# via the keys.properties file loaded at the root build.gradle level.
+#
+# DO NOT commit keys.properties (it is gitignored).
+# Instead, use scripts/setup_signing.py to generate it automatically from
+# Codemagic environment variables, or copy this template and fill it in locally.
+#
+# Usage (local development):
+#   cp key.properties.template keys.properties
+#   # Edit keys.properties with your actual keystore details
+#
+# How mbw/build.gradle consumes these values:
+#   storeFile file('../' + prodKeyStore)   <- path relative to repo root
+#   keyAlias  prodKeyAlias
+#   storePassword prodKeyStorePassword
+#   keyPassword   prodKeyAliasPassword
+#
+# For the testnet / btctestnet flavour, mirror the same keystore or use a
+# separate one by changing the testKey* properties below.
+
+# --- Release (prodnet) signing ---
+prodKeyStore=keystore.jks
+prodKeyAlias=your-key-alias
+prodKeyStorePassword=your-keystore-password
+prodKeyAliasPassword=your-key-password
+
+# --- Testnet signing (can share the same keystore) ---
+testKeyStore=keystore.jks
+testKeyAlias=your-key-alias
+testKeyStorePassword=your-keystore-password
+testKeyAliasPassword=your-key-password

@@ -1,0 +1,91 @@
+workflows:
+  android-release-apk:
+    name: Android Release APK (prodnet)
+    instance_type: linux_x2
+    max_build_duration: 90
+
+    environment:
+      java: 17
+      groups:
+        # All variables in this group are configured in the Codemagic UI.
+        # Required variables: CM_KEYSTORE, CM_KEYSTORE_PASSWORD, CM_KEY_ALIAS, CM_KEY_PASSWORD
+        # Optional variables: CM_EMAIL_ADDRESS, CM_TELEGRAM_BOT_TOKEN, CM_TELEGRAM_CHAT_ID
+        - release_signing
+      vars:
+        # Gradle build flags — not secrets, safe to commit
+        GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.configureondemand=true -Xmx4g"
+
+    triggering:
+      events:
+        - push
+        - tag
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+        - pattern: master
+          include: true
+          source: true
+      tag_patterns:
+        - pattern: 'v*.*.*'
+          include: true
+
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+        - $HOME/.gradle/wrapper
+        - $HOME/.android/build-cache
+
+    scripts:
+      - name: Checkout submodules
+        script: |
+          git submodule update --init --recursive
+
+      - name: Set up signing
+        script: |
+          python3 scripts/setup_signing.py
+
+      - name: Build release APK
+        script: |
+          ./gradlew \
+            --no-daemon \
+            --parallel \
+            --configure-on-demand \
+            --build-cache \
+            clean \
+            :mbw:assembleProdnetRelease \
+            :mbw:assembleBtctestnetRelease
+
+    artifacts:
+      - mbw/build/outputs/apk/prodnet/release/*.apk
+      - mbw/build/outputs/apk/btctestnet/release/*.apk
+      - mbw/build/outputs/mapping/**/*.txt
+      - mbw/build/outputs/native-debug-symbols/**/*.zip
+
+    publishing:
+      email:
+        recipients:
+          - $CM_EMAIL_ADDRESS
+        notify:
+          success: true
+          failure: true
+      scripts:
+        - name: Notify Telegram (optional)
+          ignore_failure: true
+          script: |
+            # Sends a build-status notification to a Telegram chat.
+            # Skipped silently if CM_TELEGRAM_BOT_TOKEN or CM_TELEGRAM_CHAT_ID are unset.
+            if [ -z "${CM_TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${CM_TELEGRAM_CHAT_ID:-}" ]; then
+              echo "Telegram credentials not configured — skipping notification."
+              exit 0
+            fi
+            STATUS="✅ Build succeeded"
+            if [ "$CM_BUILD_STEP_STATUS" = "failed" ]; then
+              STATUS="❌ Build FAILED"
+            fi
+            MESSAGE="${STATUS}%0ABranch%3A ${CM_BRANCH}%0ACommit%3A ${CM_COMMIT}%0ABuild%3A ${CM_BUILD_ID}"
+            curl -s -X POST \
+              "https://api.telegram.org/bot${CM_TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -d "chat_id=${CM_TELEGRAM_CHAT_ID}" \
+              -d "text=${MESSAGE}" \
+              -d "parse_mode=HTML"

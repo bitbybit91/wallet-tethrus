@@ -1,3 +1,39 @@
+Release Build via Codemagic
+===========================
+
+The repository ships with a fully automated release pipeline for
+[Codemagic CI/CD](https://codemagic.io). A signed production APK is
+produced on every push to `main` (or any tag matching `v*.*.*`) **without
+any manual steps**.
+
+### One-time setup
+
+1. Connect `bitbybit91/wallet-tethrus` to Codemagic.
+2. Create a variable group named **`release_signing`** containing:
+   - `CM_KEYSTORE` — your release keystore base64-encoded (`base64 -w 0 keystore.jks`)
+   - `CM_KEYSTORE_PASSWORD`, `CM_KEY_ALIAS`, `CM_KEY_PASSWORD`
+3. Import the group into the application. Push to `main`. Done.
+
+Full instructions: **[CODEMAGIC_SETUP.md](CODEMAGIC_SETUP.md)**
+
+### Local pre-flight check
+
+```bash
+python3 scripts/verify_release_ready.py
+```
+
+### Files added by this setup
+
+| File | Purpose |
+|---|---|
+| `codemagic.yaml` | Codemagic workflow definition |
+| `scripts/setup_signing.py` | Decodes keystore from env vars, writes `keys.properties` |
+| `scripts/verify_release_ready.py` | Local readiness checker |
+| `key.properties.template` | Template for local signing setup |
+| `CODEMAGIC_SETUP.md` | Step-by-step Codemagic configuration guide |
+
+---
+
 Beta channel
 ============
 
