@@ -3,15 +3,18 @@
 verify_release_ready.py — Pre-flight readiness check for wallet-tethrus (native Android).
 
 Checks:
-  1. Java version (requires 17+)
-  2. Python version (requires 3.8+)
-  3. keys.properties present and complete
-  4. keystore.jks present
-  5. mbw/build.gradle signing config references expected properties
-  6. gradle/libs.versions.toml SDK versions meet Google Play requirements
-  7. AndroidManifest.xml: required attributes present
-  8. No hardcoded secrets in key build files
-  9. ./gradlew :mbw:assembleProdnetRelease --dry-run
+  1. Python version (requires 3.8+)
+  2. Java version (requires 17+)
+  3. gradlew executable bit set
+  4. Gradle wrapper version (requires 8.0+)
+  5. gradle/libs.versions.toml SDK versions meet Google Play requirements
+  6. codemagic.yaml present
+  7. mbw/build.gradle signing config references expected properties
+  8. keys.properties present and complete
+  9. keystore.jks present
+  10. No hardcoded secrets in key build files
+  11. AndroidManifest.xml: required attributes present
+  12. ./gradlew :mbw:assembleProdnetRelease --dry-run
 
 Exit 0 if ALL checks pass, exit 1 otherwise.
 """
@@ -21,6 +24,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import List, Optional, Tuple
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -40,7 +44,7 @@ PASS = "✅"
 FAIL = "❌"
 WARN = "⚠️ "
 
-results: list[tuple[str, str, str]] = []   # (status, check_name, message)
+results: List[Tuple[str, str, str]] = []   # (status, check_name, message)
 
 
 def record(ok: bool, name: str, msg: str = "") -> bool:
@@ -49,7 +53,7 @@ def record(ok: bool, name: str, msg: str = "") -> bool:
     return ok
 
 
-def run_cmd(cmd: list[str], cwd: Path | None = None, timeout: int = 120) -> tuple[int, str, str]:
+def run_cmd(cmd: List[str], cwd: Optional[Path] = None, timeout: int = 120) -> Tuple[int, str, str]:
     """Run a subprocess, return (returncode, stdout, stderr)."""
     try:
         result = subprocess.run(
@@ -112,7 +116,7 @@ def check_sdk_versions() -> bool:
         return record(False, "SDK versions (libs.versions.toml)", "File not found")
     content = VERSIONS_TOML.read_text(encoding="utf-8")
 
-    def extract_sdk(key: str) -> int | None:
+    def extract_sdk(key: str) -> Optional[int]:
         m = re.search(rf'{re.escape(key)}\s*=\s*"(\d+)"', content)
         return int(m.group(1)) if m else None
 

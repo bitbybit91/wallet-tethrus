@@ -13,7 +13,7 @@ workflows:
         - release_signing
       vars:
         # Gradle build flags — not secrets, safe to commit
-        GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.configureondemand=true -Xmx4g"
+        GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.configureondemand=true -Xmx4g"
 
     triggering:
       events:
