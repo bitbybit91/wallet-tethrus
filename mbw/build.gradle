@@ -484,7 +484,9 @@ android {
         fdroid {
             applicationId 'com.mycelium.wallet'
             versionName = defaultConfig.versionName
-            signingConfig signingConfigs.commonDebug  // unsigned for F-Droid submission
+            // F-Droid submission requires an unsigned APK; F-Droid re-signs it
+            // with their own key during the reproducibility verification process.
+            signingConfig null
 
             ext {
                 MTAssetID = "LaA8aiRBha2BcC6PCqMuK8xzZqdA3Lb6VVv41K"

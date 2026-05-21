@@ -19,8 +19,6 @@ workflows:
           include: true
         - pattern: "master"
           include: true
-        - pattern: "copilot/*"
-          include: true
       tag_patterns:
         - pattern: "v*.*.*"
           include: true
@@ -114,8 +112,6 @@ workflows:
         - pattern: "main"
           include: true
         - pattern: "master"
-          include: true
-        - pattern: "copilot/*"
           include: true
       tag_patterns:
         - pattern: "v*.*.*"

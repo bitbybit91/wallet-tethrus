@@ -130,7 +130,7 @@ These are not blockers for the current build but should be addressed in a follow
 
 | File | Secret Type | Value (redacted) | Severity |
 |------|-------------|-----------------|----------|
-| `mbw/google-services.json` | Firebase API key | `AIzaSyBqL3Ur6TE2nGxeTItMolGTrkKppdb50Ww` | 🔴 HIGH — key committed to repo |
+| `mbw/google-services.json` | Firebase API key | `AIzaSy…50Ww` *(redacted)* | 🔴 HIGH — key committed to repo |
 | `debug.keystore` | Android debug keystore | Password: `android` / alias: `androiddebugkey` | ⚠️ LOW — intentional debug key, standard Android convention |
 
 **Recommendation for `google-services.json`:** This file is present in the upstream `mycelium-com/wallet-android` repository as well, and the Firebase project is owned by Mycelium. For this fork, the API key exposure is inherited. The key is a restricted Firebase API key (used for push notifications / dynamic links). Rotate it in the Firebase Console and restrict it to the production app signing certificate. As a fork maintainer, you should create your own Firebase project and replace this file, or remove Firebase entirely for the `fdroid` variant (which this PR does).

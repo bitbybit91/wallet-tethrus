@@ -47,26 +47,21 @@ def check_apk(apk_path: Path) -> bool:
     try:
         with zipfile.ZipFile(apk_path, "r") as zf:
             all_names = zf.namelist()
+            dex_entries = [n for n in all_names if n.endswith(".dex")]
+            dex_data: dict[str, bytes] = {d: zf.read(d) for d in dex_entries}
     except zipfile.BadZipFile as exc:
         print(f"[FAIL] Not a valid ZIP/APK: {exc}", file=sys.stderr)
         return False
 
     # Check for proprietary class prefixes in dex files
-    dex_entries = [n for n in all_names if n.endswith(".dex")]
-    # We can't easily inspect class names inside dex without dexdump,
-    # so we check the raw bytes of each dex for string markers.
-    try:
-        with zipfile.ZipFile(apk_path, "r") as zf:
-            for dex in dex_entries:
-                dex_bytes = zf.read(dex)
-                for prefix in PROPRIETARY_PREFIXES:
-                    marker = prefix.encode("utf-8")
-                    if marker in dex_bytes:
-                        failures.append(
-                            f"Proprietary class prefix '{prefix}' found in {dex}"
-                        )
-    except Exception as exc:
-        print(f"[WARN] Could not inspect dex entries: {exc}", file=sys.stderr)
+    # We check the raw bytes of each dex for string markers.
+    for dex, dex_bytes in dex_data.items():
+        for prefix in PROPRIETARY_PREFIXES:
+            marker = prefix.encode("utf-8")
+            if marker in dex_bytes:
+                failures.append(
+                    f"Proprietary class prefix '{prefix}' found in {dex}"
+                )
 
     # Check for banned asset files
     for banned in BANNED_ASSETS:

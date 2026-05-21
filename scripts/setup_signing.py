@@ -61,10 +61,17 @@ def decode_keystore(b64_data: str, dest_path: Path, label: str) -> None:
 
 
 def write_keys_properties(props: dict, dest: Path) -> None:
-    """Write key=value pairs to a .properties file."""
+    """Write key=value pairs to a .properties file, readable only by the current user.
+
+    The file intentionally contains signing credentials in plaintext because
+    Gradle requires them in this format. Permissions are set to 0o600 (owner
+    read/write only) to limit exposure on shared build machines.
+    """
     lines = [f"{k}={v}" for k, v in props.items()]
     dest.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"[OK] keys.properties written to: {dest}")
+    # Restrict to owner read/write only (rw-------)
+    dest.chmod(0o600)
+    print(f"[OK] keys.properties written to: {dest} (permissions: 600)")
 
 
 def main() -> None:
