@@ -1,0 +1,6 @@
+* Update shared native libraries for 16 KB page size compatibility (Android 15+)
+* Bump compileSdk and targetSdk to 36
+* Add F-Droid flavor: removes Firebase, Google Play Services, and all proprietary SDKs
+* Add Codemagic CI/CD pipeline with android-release-apk and android-fdroid-build workflows
+* Add signing helper scripts (scripts/setup_signing.py, scripts/verify_release_ready.py)
+* Upgrade Kotlin to 2.0.21, AGP to 8.12.1, Gradle wrapper to 8.13

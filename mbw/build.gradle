@@ -4,10 +4,18 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.naviagation)
     alias(libs.plugins.sqldelight)
-    alias(libs.plugins.google.services)
+    // google-services is applied below, gated for the F-Droid flavor
 }
 apply plugin: "kotlin-parcelize"
 apply plugin: 'kotlin-kapt'
+
+// Apply Google Services plugin only when NOT building the F-Droid flavor.
+// The F-Droid variant must not reference Firebase or Play Services at all.
+// To build the F-Droid APK:  ./gradlew -PfdroidBuild=true :mbw:assembleFdroidRelease
+def isFdroidBuild = project.hasProperty('fdroidBuild') && project.fdroidBuild.toBoolean()
+if (!isFdroidBuild) {
+    apply plugin: 'com.google.gms.google-services'
+}
 
 configurations {
     compile.exclude group: 'org.apache.httpcomponents', module: 'httpclient'
@@ -60,8 +68,13 @@ dependencies {
     implementation libs.bundles.lifecycle
     implementation "androidx.lifecycle:lifecycle-extensions:2.2.0"
 
-    implementation(platform(libs.firebase.bom))
-    implementation libs.bundles.firebase.bom
+    // Firebase dependencies are excluded from the F-Droid flavor.
+    prodnetImplementation(platform(libs.firebase.bom))
+    prodnetImplementation libs.bundles.firebase.bom
+    btctestnetImplementation(platform(libs.firebase.bom))
+    btctestnetImplementation libs.bundles.firebase.bom
+    huaweiProdnetImplementation(platform(libs.firebase.bom))
+    huaweiProdnetImplementation libs.bundles.firebase.bom
     implementation "com.google.code.findbugs:annotations:$findBugsVersion"
     implementation "com.squareup:otto:$ottoVersion"
 
@@ -116,7 +129,11 @@ dependencies {
     implementation(libs.glide) {
         exclude group: "com.android.support"
     }
-    implementation libs.play.services.base
+    // Google Play Services and Firebase are excluded from the F-Droid flavor.
+    // They are pulled in for all other flavors via the implementations below.
+    prodnetImplementation libs.play.services.base
+    btctestnetImplementation libs.play.services.base
+    huaweiProdnetImplementation libs.play.services.base
     ksp libs.glide.ksp
     implementation files("$rootDir/libs/netcipher-2.2.1.jar")
     implementation "com.airbnb.android:lottie:3.4.0"
@@ -459,6 +476,59 @@ android {
             }
             logger.info("Signing config is ", signingConfig)
         }
+
+        // ── F-Droid flavor ────────────────────────────────────────────────────
+        // Builds a FOSS-only APK: no Firebase, no Google Play Services,
+        // no proprietary SDKs. Suitable for F-Droid distribution.
+        // Build with: ./gradlew -PfdroidBuild=true :mbw:assembleFdroidRelease
+        fdroid {
+            applicationId 'com.mycelium.wallet'
+            versionName = defaultConfig.versionName
+            // F-Droid submission requires an unsigned APK; F-Droid re-signs it
+            // with their own key during the reproducibility verification process.
+            signingConfig null
+
+            ext {
+                MTAssetID = "LaA8aiRBha2BcC6PCqMuK8xzZqdA3Lb6VVv41K"
+                MassAssetID = "La4szjzKfJyHQ75qgDEnbzp4qY8GQeDR5Z7h2W"
+                RMCAssetID = "La4aGUPuNKZyC393pS2Nb4RJdk2WvmoaAdrRLZ"
+                RMCApiClientURL = ""
+                ColoredCoinsApiURLs = '{"https://coloredcoinsd.gear.mycelium.com/v3/", "https://api.coloredcoins.org/v3/"}'
+                ColuBlockExplorerApiURLs = '{"https://coloredcoins.gear.mycelium.com/api/", "https://explorer.coloredcoins.org/api/"}'
+                RMCChangeAddress = ""
+
+                ElectrumServers = '{"tcp-tls://electrumx-1a.mycelium.com:10000",' +
+                        '"tcp-tls://electrumx-1a0.mycelium.com:10000",' +
+                        '"tcp-tls://electrumx-1a0.mycelium.com:50002",' +
+                        '"tcp-tls://electrumx-1a1.mycelium.com:10000",' +
+                        '"tcp-tls://electrumx-1a1.mycelium.com:50002",' +
+                        '"tcp-tls://electrumx-1a2.mycelium.com:10000",' +
+                        '"tcp-tls://electrumx-1a2.mycelium.com:50002",' +
+                        '"tcp-tls://electrumx-2a0.mycelium.com:10000",' +
+                        '"tcp-tls://electrumx-2a0.mycelium.com:10001"}'
+                WapiServers='"[{\\\'cert-sha1\':\\\'17:62:9D:04:0D:4E:1E:A2:9A:BD:FF:9F:38:1B:18:8F:94:3E:8B:5F\\\',\\\'url\\\':\\\'https://wapi.mycelium.com\\\'}]"'
+                ElectrumBTCVServers = '{"tcp-tls://electrumx-mainnet1.bitcoinvault.global:443",' +
+                        '"tcp-tls://electrumx-mainnet2.bitcoinvault.global:443"}'
+                EthBlockBook = '{"https://bb-eth.mycelium.com:9136"}'
+                FioApiServers = '{"https://fio.eu.eosamsterdam.net/v1/"}'
+                FioHistoryServers = '{"https://fio.greymass.com/v1/"}'
+                tpid = ""
+
+                appIdSpvBch = [release: "com.mycelium.module.spvbch",
+                               debug  : "com.mycelium.module.spvbch.debug"]
+                appIdGeb = [release: "com.modules.tradingbots.getextrabtc",
+                            debug  : "com.modules.tradingbots.getextrabtc.debug"]
+                // Exchange / onramp features require proprietary APIs — disabled in F-Droid
+                simplex = ""
+                safello = ""
+                sepa = ""
+                safelloEth = ""
+                sepaEth = ""
+                sepaBuyBitsOfGold = ""
+                sepaSellBitsOfGold = ""
+                mediaFlowURL = ""
+            }
+        }
     }
 
     applicationVariants.all { variant ->
@@ -487,6 +557,10 @@ android {
         variant.buildConfigField "String", "SEPA_BUY_BITS_OF_GOLD", "\"${flavor.ext.sepaBuyBitsOfGold}\""
         variant.buildConfigField "String", "SEPA_SELL_BITS_OF_GOLD", "\"${flavor.ext.sepaSellBitsOfGold}\""
         variant.buildConfigField "String", "MEDIA_FLOW_URL", "\"${flavor.ext.mediaFlowURL}\""
+        // HAS_PROPRIETARY is false for the F-Droid flavor; true for all others.
+        // Use BuildConfig.HAS_PROPRIETARY to gate Firebase/Play Services/onramp features.
+        def hasProprietaryValue = (flavor.name != 'fdroid')
+        variant.buildConfigField "boolean", "HAS_PROPRIETARY", "${hasProprietaryValue}"
     }
 
     testOptions {
