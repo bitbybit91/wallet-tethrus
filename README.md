@@ -1,44 +1,289 @@
-Beta channel
-============
+# wallet-tethrus
 
-In order to receive updates quicker than others, you need to enable beta versions of the software in
-[Google Play](https://play.google.com/apps/testing/com.mycelium.wallet)
+A fork of [Mycelium Bitcoin Wallet](https://github.com/mycelium-com/wallet-android) with:
 
-As beta testers, please make sure you have a recent **backup of the masterseed** and all **private keys** inside Mycelium. Beta testers will experience many bugs.
-So far, restoring the wallet from masterseed has never been necessary, but we offer no guarantees.
+- ✅ Automated signed-release APK pipeline via **Codemagic CI/CD**
+- ✅ Reproducible, proprietary-free **F-Droid** build flavor
+- ✅ Lint, unit-tests, and static-analysis on every PR
+- ✅ Step-by-step signing, CI, and F-Droid publication documentation
 
-Building
-========
+---
 
-To build everything from source, simply checkout the source and build using gradle on the build system you need:
+## Table of Contents
 
- * JDK 1.8
+1. [Quick Start — Local Build](#1-quick-start--local-build)
+2. [Build Flavors](#2-build-flavors)
+3. [Signing Configuration](#3-signing-configuration)
+4. [Codemagic CI/CD Setup](#4-codemagic-cicd-setup)
+5. [F-Droid Publication](#5-f-droid-publication)
+6. [Repository Audit Report](#6-repository-audit-report)
+7. [Upstream — Mycelium Bitcoin Wallet](#upstream--mycelium-bitcoin-wallet)
 
-The project layout is designed to be used with a recent version of Android Studio (currently 4.1.2)
+---
 
-#### Build commands
+## 1. Quick Start — Local Build
 
-To get the source code, type:
+### Prerequisites
 
-    git clone https://github.com/mycelium-com/wallet-android.git
-    cd wallet-android
-    git submodule update --init --recursive
+| Tool | Minimum Version |
+|------|----------------|
+| JDK  | 17 (21 recommended) |
+| Android SDK | API 36 |
+| Gradle (via wrapper) | 8.13 (auto-downloaded) |
 
-Linux/Mac type:
+### Steps
 
-    ./gradlew clean test mbw::assembleProdnetRelease mbw::assembleBtctestnetRelease
+```bash
+# 1. Clone with submodules
+git clone --recursive https://github.com/bitbybit91/wallet-tethrus.git
+cd wallet-tethrus
 
-Windows type:
+# 2. Build debug APKs (no signing keys required)
+./gradlew clean test mbw:assembleProdnetDebug mbw:assembleBtctestnetDebug
 
-    gradlew.bat clean test mbw::assembleProdnetRelease mbw::assembleBtctestnetRelease
+# 3. Build release APKs (requires keys.properties — see §3)
+./gradlew :mbw:assembleProdnetRelease :mbw:assembleBtctestnetRelease
 
- - Voila, look into `mbw/build/outputs/apk/` to see the generated apk.
-   There are versions for both prodnet and testnet.
+# 4. Build the F-Droid unsigned APK (no Google services)
+./gradlew -PfdroidBuild=true :mbw:assembleFdroidRelease
+```
 
-Alternatively you can install the latest version from the [Play Store](https://play.google.com/store/apps/details?id=com.mycelium.wallet).
+APKs are output to `mbw/build/outputs/apk/`.
 
-If you cannot access the Play store, you can obtain the apk directly from the Mycelium Bitcoin
-Wallet [download page](https://wallet.mycelium.com/).
+---
+
+## 2. Build Flavors
+
+| Flavor | App ID | Firebase | Play Services | Exchange/Onramp | Use case |
+|--------|--------|----------|---------------|-----------------|----------|
+| `prodnet` | `com.mycelium.wallet` | ✅ | ✅ | ✅ | Google Play / production |
+| `btctestnet` | `com.mycelium.testnetwallet` | ✅ | ✅ | ✅ (test) | Bitcoin testnet testing |
+| `huaweiProdnet` | `com.mycelium.wallet.app` | ✅ | ✅ | ✅ | Huawei AppGallery |
+| **`fdroid`** | `com.mycelium.wallet` | ❌ | ❌ | ❌ | **F-Droid / FOSS distribution** |
+
+### F-Droid Flavor Details
+
+The `fdroid` product flavor strips all proprietary SDK dependencies:
+
+- No Firebase (Dynamic Links, FCM)
+- No Google Play Services (`play-services-base`)
+- No exchange/onramp URLs (Simplex, Safello, bitsofgold)
+- `BuildConfig.HAS_PROPRIETARY = false`
+
+Use `BuildConfig.HAS_PROPRIETARY` in Java/Kotlin code to gate features that
+require proprietary services:
+
+```kotlin
+if (BuildConfig.HAS_PROPRIETARY) {
+    // show Firebase push notification opt-in
+    // show Simplex onramp button
+}
+```
+
+---
+
+## 3. Signing Configuration
+
+Release APKs are signed using a `keys.properties` file at the repository root
+(never committed — listed in `.gitignore`).
+
+### keys.properties format
+
+```properties
+prodKeyStore=release.keystore
+prodKeyAlias=my_key_alias
+prodKeyStorePassword=changeme
+prodKeyAliasPassword=changeme
+
+# Optional — if omitted, btctestnet uses the debug keystore
+testKeyStore=testnet-release.keystore
+testKeyAlias=my_testnet_alias
+testKeyStorePassword=changeme
+testKeyAliasPassword=changeme
+```
+
+### Creating a new keystore
+
+```bash
+keytool -genkeypair \
+  -v \
+  -keystore release.keystore \
+  -alias my_key_alias \
+  -keyalg RSA \
+  -keysize 2048 \
+  -validity 10000
+```
+
+### Pre-flight check (local)
+
+Run the pre-flight script to verify your environment before building:
+
+```bash
+python3 scripts/verify_release_ready.py
+```
+
+### Automated key setup (CI)
+
+The Codemagic pipeline calls `scripts/setup_signing.py`, which reads the
+keystore from environment variables and writes `keys.properties` automatically.
+See [§4](#4-codemagic-cicd-setup) for details.
+
+---
+
+## 4. Codemagic CI/CD Setup
+
+### Workflows
+
+The `codemagic.yaml` at the repository root defines two workflows:
+
+| Workflow | Trigger | Output |
+|----------|---------|--------|
+| `android-release-apk` | Push to `main`/`master`/`copilot/*`, tags `v*.*.*` | Signed prodnet + btctestnet release APKs, R8 mapping, native debug symbols |
+| `android-fdroid-build` | Push to `main`/`master`/`copilot/*`, tags `v*.*.*` | Unsigned fdroid release APK (reproducible, FOSS) |
+
+### Codemagic Environment Groups
+
+Create the following groups in **Codemagic → Teams → [your team] → Global
+variables and secrets**:
+
+#### Group: `wallet_tethrus_signing`
+
+| Variable | Description | Secret? |
+|----------|-------------|---------|
+| `CM_KEYSTORE` | Base64-encoded `.jks` keystore for prodnet release | ✅ Yes |
+| `CM_KEY_ALIAS` | Key alias inside the prodnet keystore | ✅ Yes |
+| `CM_KEY_PASSWORD` | Private key password | ✅ Yes |
+| `CM_KEYSTORE_PASSWORD` | Keystore file password | ✅ Yes |
+| `CM_TESTNET_KEYSTORE` | Base64-encoded `.jks` for btctestnet *(optional)* | ✅ Yes |
+| `CM_TESTNET_KEY_ALIAS` | Testnet key alias *(optional)* | ✅ Yes |
+| `CM_TESTNET_KEY_PASSWORD` | Testnet private key password *(optional)* | ✅ Yes |
+| `CM_TESTNET_KEYSTORE_PASSWORD` | Testnet keystore password *(optional)* | ✅ Yes |
+
+#### Group: `wallet_tethrus_notifications` *(optional)*
+
+| Variable | Description |
+|----------|-------------|
+| `NOTIFICATION_EMAIL` | Email address for build notifications |
+
+### Base64-encoding your keystore
+
+```bash
+# macOS / Linux
+base64 -i release.keystore | pbcopy   # copies to clipboard on macOS
+base64 -i release.keystore            # prints to stdout
+
+# PowerShell (Windows)
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("release.keystore"))
+```
+
+Paste the output as the value of `CM_KEYSTORE`.
+
+### Triggering a release build
+
+```bash
+# Create and push a semantic version tag
+git tag v3.21.1
+git push origin v3.21.1
+```
+
+Codemagic will automatically pick up the tag and start both workflows.
+
+### Gradle caching
+
+Both workflows cache `~/.gradle/caches`, `~/.gradle/wrapper`, and
+`~/.android/build-cache`. First builds take ~15–20 min; subsequent builds with
+warm caches take ~5–8 min.
+
+---
+
+## 5. F-Droid Publication
+
+### Overview
+
+The `fdroid` product flavor produces an APK with no proprietary dependencies.
+The `metadata/com.mycelium.wallet/` directory contains F-Droid store listing
+metadata.
+
+### Metadata files
+
+```
+metadata/com.mycelium.wallet/
+├── changelogs/
+│   └── 3210000.txt          # versionCode-named changelog
+└── en-US/
+    ├── title.txt
+    ├── short_description.txt
+    ├── full_description.txt
+    └── images/
+        ├── README.md        # instructions for populating icon and screenshots
+        ├── icon.png         # 512×512 app icon (must be added manually)
+        └── phoneScreenshots/
+            └── *.png        # optional, up to 8 screenshots
+```
+
+### Building the F-Droid APK locally
+
+```bash
+./gradlew -PfdroidBuild=true clean :mbw:assembleFdroidRelease
+```
+
+Output: `mbw/build/outputs/apk/fdroid/release/mbw-fdroid-release-unsigned.apk`
+
+### Verifying the APK is FOSS-clean
+
+```bash
+python3 scripts/verify_fdroid_apk.py \
+  mbw/build/outputs/apk/fdroid/release/mbw-fdroid-release-unsigned.apk
+```
+
+### Submitting to F-Droid
+
+> ⚠️ **License note:** The `:mbw` module is licensed under the Microsoft
+> Reference Source License (MS-RSL), which is **non-free**. F-Droid requires
+> FOSS licenses. Submission to the official F-Droid repository requires either
+> re-licensing `:mbw` or obtaining a contributor agreement from Mycelium.
+> Self-hosting on a custom F-Droid repository is possible without this
+> restriction.
+
+To submit to the official F-Droid repository once licensing is resolved:
+
+1. Fork https://gitlab.com/fdroid/fdroiddata
+2. Copy the `metadata/com.mycelium.wallet/` directory into the fork
+3. Populate `metadata/com.mycelium.wallet/en-US/images/icon.png` and screenshots
+4. Open a merge request
+
+For a custom/self-hosted F-Droid repository, use
+[fdroidserver](https://gitlab.com/fdroid/fdroidserver):
+
+```bash
+pip install fdroidserver
+mkdir my-fdroid-repo && cd my-fdroid-repo
+fdroid init
+cp -r /path/to/wallet-tethrus/metadata .
+cp mbw-fdroid-release-unsigned.apk repo/
+fdroid update --create-metadata
+fdroid server update
+```
+
+---
+
+## 6. Repository Audit Report
+
+See [REPO_AUDIT.md](REPO_AUDIT.md) for the full repository audit covering:
+
+- Branch divergence from upstream mycelium-com/wallet-android
+- Gradle module inventory and build states
+- Proprietary dependency analysis (F-Droid blockers)
+- Hardcoded secrets and API keys
+- Deprecated APIs and recommended upgrades
+- Binary artifact inventory
+- License / SPDX compliance
+
+---
+
+## Upstream — Mycelium Bitcoin Wallet
+
+
 
 App Download Verification
 -------------------------

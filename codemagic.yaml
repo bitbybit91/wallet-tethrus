@@ -1,0 +1,169 @@
+workflows:
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # android-release-apk
+  # Builds signed release APKs for prodnet and btctestnet flavors.
+  # Triggered on push to main/master and semantic version tags (v*.*.*).
+  # ──────────────────────────────────────────────────────────────────────────────
+  android-release-apk:
+    name: "Android Release APK"
+    max_build_duration: 90
+    instance_type: linux_x2
+
+    triggering:
+      events:
+        - push
+        - tag
+      branch_patterns:
+        - pattern: "main"
+          include: true
+        - pattern: "master"
+          include: true
+        - pattern: "copilot/*"
+          include: true
+      tag_patterns:
+        - pattern: "v*.*.*"
+          include: true
+      cancel_previous_builds: true
+
+    environment:
+      java: 21
+      android_signing:
+        - wallet_tethrus_release
+      groups:
+        - wallet_tethrus_signing
+        - wallet_tethrus_notifications
+      vars:
+        ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+        GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.configureondemand=true"
+
+    cache:
+      cache_paths:
+        - ~/.gradle/caches
+        - ~/.gradle/wrapper
+        - ~/.android/build-cache
+
+    scripts:
+      - name: Initialize submodules
+        script: |
+          git submodule update --init --recursive
+
+      - name: Validate signing environment
+        script: |
+          python3 scripts/verify_release_ready.py
+
+      - name: Setup signing keys
+        script: |
+          python3 scripts/setup_signing.py
+
+      - name: Run unit tests
+        script: |
+          ./gradlew --no-daemon --build-cache test
+
+      - name: Run lint
+        script: |
+          ./gradlew --no-daemon --build-cache lint
+
+      - name: Build prodnet release APK
+        script: |
+          ./gradlew --no-daemon --build-cache \
+            :mbw:assembleProdnetRelease
+
+      - name: Build btctestnet release APK
+        script: |
+          ./gradlew --no-daemon --build-cache \
+            :mbw:assembleBtctestnetRelease
+
+    artifacts:
+      - mbw/build/outputs/apk/prodnet/release/*.apk
+      - mbw/build/outputs/apk/btctestnet/release/*.apk
+      - mbw/build/outputs/mapping/prodnetRelease/mapping.txt
+      - mbw/build/outputs/mapping/btctestnetRelease/mapping.txt
+      - mbw/build/outputs/native-debug-symbols/**/*.zip
+
+    publishing:
+      email:
+        recipients:
+          - $NOTIFICATION_EMAIL
+        notify:
+          success: true
+          failure: true
+      slack:
+        channel: "#builds"
+        notify_on_build_start: true
+        notify:
+          success: true
+          failure: true
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # android-fdroid-build
+  # Builds an unsigned, reproducible APK from the fdroid product flavor.
+  # No Google Play Services, Firebase, or other proprietary SDKs are included.
+  # Suitable for F-Droid metadata verification.
+  # ──────────────────────────────────────────────────────────────────────────────
+  android-fdroid-build:
+    name: "Android F-Droid Build (unsigned, reproducible)"
+    max_build_duration: 90
+    instance_type: linux_x2
+
+    triggering:
+      events:
+        - push
+        - tag
+      branch_patterns:
+        - pattern: "main"
+          include: true
+        - pattern: "master"
+          include: true
+        - pattern: "copilot/*"
+          include: true
+      tag_patterns:
+        - pattern: "v*.*.*"
+          include: true
+      cancel_previous_builds: true
+
+    environment:
+      java: 21
+      vars:
+        ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+        GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true"
+        # Ensures no proprietary signing key is loaded for the F-Droid variant
+        FDROID_BUILD: "true"
+
+    cache:
+      cache_paths:
+        - ~/.gradle/caches
+        - ~/.gradle/wrapper
+        - ~/.android/build-cache
+
+    scripts:
+      - name: Initialize submodules
+        script: |
+          git submodule update --init --recursive
+
+      - name: Run unit tests
+        script: |
+          ./gradlew --no-daemon --build-cache test
+
+      - name: Build F-Droid unsigned release APK
+        script: |
+          ./gradlew --no-daemon --build-cache \
+            -PfdroidBuild=true \
+            :mbw:assembleFdroidRelease
+
+      - name: Verify APK has no proprietary dependencies
+        script: |
+          python3 scripts/verify_fdroid_apk.py \
+            mbw/build/outputs/apk/fdroid/release/mbw-fdroid-release-unsigned.apk
+
+    artifacts:
+      - mbw/build/outputs/apk/fdroid/release/mbw-fdroid-release-unsigned.apk
+      - mbw/build/outputs/mapping/fdroidRelease/mapping.txt
+
+    publishing:
+      email:
+        recipients:
+          - $NOTIFICATION_EMAIL
+        notify:
+          success: true
+          failure: true

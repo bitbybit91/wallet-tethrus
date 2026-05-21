@@ -1,0 +1,44 @@
+Mycelium Bitcoin Wallet is a secure, feature-rich, open-source Bitcoin and
+cryptocurrency wallet for Android — now built without any Google Play Services,
+Firebase, or other proprietary SDKs.
+
+**Features**
+
+- **Bitcoin (BTC)** — Send, receive, and manage Bitcoin with full HD wallet support
+  (BIP32/BIP44). Compatible with hardware wallets (Trezor, KeepKey, Ledger).
+- **Ethereum (ETH)** — Full ETH wallet support with ERC-20 token management.
+- **FIO Protocol** — Human-readable crypto addresses via the FIO Protocol.
+- **Local Trader** — Peer-to-peer Bitcoin trading directly in the app.
+- **Cold Storage** — Import and spend from paper wallets and hardware wallets.
+- **Multiple Accounts** — HD accounts, single-address accounts, read-only accounts.
+- **Electrum Servers** — Connects directly to Electrum servers; no custodial
+  middleman.
+- **Open Source** — Full source code available at
+  https://github.com/mycelium-com/wallet-android. This F-Droid build is
+  maintained at https://github.com/bitbybit91/wallet-tethrus.
+
+**Privacy**
+
+This F-Droid flavor contains no Google Play Services, Firebase, Crashlytics, or
+AdMob. Network connections go only to Mycelium's own Electrum and WAPI servers,
+plus any servers you configure manually.
+
+**F-Droid Build**
+
+This APK is built reproducibly from source using the `fdroid` product flavor of
+the Gradle build system. No proprietary libraries are linked. The build is
+verified against the F-Droid reproducibility checker.
+
+**Permissions**
+
+- Internet: required to sync the blockchain
+- Camera: required for QR-code scanning
+- NFC: required for NFC payment support (optional hardware)
+- Bluetooth: required for Trezor hardware wallet pairing (optional)
+
+**License**
+
+The `:mbw` module is licensed under the Microsoft Reference Source License
+(MS-RSL). All other modules (bitlib, lt-api, walletcore, etc.) are licensed
+under the Apache License 2.0. See the LICENSE files in the repository for
+details.
