@@ -27,10 +27,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.web3j.crypto.Credentials
 import org.web3j.crypto.ECKeyPair
+import org.web3j.crypto.Hash
 import org.web3j.crypto.RawTransaction
 import org.web3j.crypto.Sign
 import org.web3j.crypto.TransactionEncoder
-import org.web3j.crypto.TransactionUtils
 import org.web3j.tx.Transfer
 import org.web3j.utils.Convert
 import org.web3j.utils.Numeric
@@ -95,7 +95,10 @@ class EthAccount(private val chainId: Long,
         val hexValue = Numeric.toHexString(signedMessage)
         request.apply {
             signedHex = hexValue
-            txHash = TransactionUtils.generateTransactionHash(rawTransaction, credentials)
+            // The transaction hash must be computed from the exact bytes that get broadcast
+            // (EIP-155 signed). web3j's two-arg generateTransactionHash re-signs without
+            // chainId for legacy txs, producing a hash that does not match the on-chain one.
+            txHash = Hash.sha3(signedMessage)
             txBinary = TransactionEncoder.encode(rawTransaction)!!
         }
     }
