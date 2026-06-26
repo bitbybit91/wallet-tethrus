@@ -27,10 +27,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.web3j.crypto.Credentials
 import org.web3j.crypto.ECKeyPair
+import org.web3j.crypto.Hash
 import org.web3j.crypto.RawTransaction
 import org.web3j.crypto.Sign
 import org.web3j.crypto.TransactionEncoder
-import org.web3j.crypto.TransactionUtils
 import org.web3j.tx.Transfer
 import org.web3j.utils.Convert
 import org.web3j.utils.Numeric
@@ -95,7 +95,17 @@ class EthAccount(private val chainId: Long,
         val hexValue = Numeric.toHexString(signedMessage)
         request.apply {
             signedHex = hexValue
-            txHash = TransactionUtils.generateTransactionHash(rawTransaction, credentials)
+            // The on-chain txid is keccak256 of the actually-broadcast (EIP-155)
+            // signed message — not of a pre-EIP-155 re-signing of the raw tx.
+            // web3j 4.12 only exposes TransactionUtils.generateTransactionHash
+            // overloads for (no chainId) and (byte chainId); neither matches our
+            // long chainId (e.g. Sepolia = 11155111), so we hash signedMessage
+            // directly to stay consistent with TransactionEncoder.signMessage
+            // above. Using the no-chainId overload here produced a pre-EIP-155
+            // hash that never matches what the network returns, which caused
+            // syncTransactions() to delete the locally-stored pending tx after
+            // 150s once the remote ids failed to contain it.
+            txHash = Hash.sha3(signedMessage)
             txBinary = TransactionEncoder.encode(rawTransaction)!!
         }
     }
