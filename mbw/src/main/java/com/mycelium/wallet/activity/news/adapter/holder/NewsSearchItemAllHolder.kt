@@ -10,7 +10,7 @@ import com.mycelium.wallet.databinding.ItemAllNewsSearchBinding
 class NewsSearchItemAllHolder(val preferences: SharedPreferences, itemView: View) :
     RecyclerView.ViewHolder(itemView) {
     val binding = ItemAllNewsSearchBinding.bind(itemView)
-    val category = binding.tvCategory.text
+    val category = binding.tvCategory
     val showAll = binding.viewMore
     val listHolder = NewsV2ListHolder(preferences, binding.list)
 }
